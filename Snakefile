@@ -6,8 +6,9 @@ SAMPLES = [os.path.basename(d) for d in glob("data/*") if os.path.isdir(d)]
 
 rule all:
     input:
-        expand("results/{sample}/1_normalized_data.csv",sample=SAMPLES),
-        expand("results/{sample}/0_mean_sd.csv",sample=SAMPLES)
+        expand("results/{sample}/2_normalized_data.csv",sample=SAMPLES),
+        expand("results/{sample}/0_mean_sd.csv",sample=SAMPLES),
+        expand("results/{sample}/1_quality_filter.csv", sample=SAMPLES)
 
 rule process_csv:
     input:
@@ -20,17 +21,28 @@ rule process_csv:
         "logs/{sample}.log"
     shell:
         """
-        python isolate_stimuli.py {input.data} {input.markers} {output.data} {output.stat} > {log} 2>&1
+        python 0_isolate_stimuli.py {input.data} {input.markers} {output.data} {output.stat} > {log} 2>&1
+        """
+rule filter_samples:
+    input:
+        stat=rules.process_csv.output.stat
+    output:
+        report="results/{sample}/1_quality_filter.csv"
+    log:
+        "logs/{sample}.log"
+    shell:
+        """
+        python 1_inspect_quality.py {input.stat} {output.report} > {log} 2>&1
         """
 
 rule normalize_stimuli:
     input:
         data=rules.process_csv.output.data
     output:
-        data="results/{sample}/1_normalized_data.csv"
+        data="results/{sample}/2_normalized_data.csv"
     log:
         "logs/{sample}.log"
     shell:
         """
-        python normalize_stimuli.py {input.data} {output.data} > {log} 2>&1
+        python 2_normalize_stimuli.py {input.data} {output.data} > {log} 2>&1
         """

@@ -1,13 +1,10 @@
 import json
 import os
 import sys
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 import pandas as pd
 import tqdm
 
-from normalization_methods import z_score_normalization, basic_normalization, ratio_normalization, \
+from utils.normalization_methods import z_score_normalization, basic_normalization, ratio_normalization, \
     detrend_normalization, IQR_normalization
 
 with open("config.json", "r") as f:
@@ -24,7 +21,7 @@ NORMALIZATION = config["normalization"]
 
 if DEBUG:
     data_file = "results/BA1/0_total_data.csv"
-    output_file = "results/BA1/1_normalized_data.csv"
+    output_file = "results/BA1/2_normalized_data.csv"
     output_folder = "/".join(output_file.split("/")[:2])
 else:
     data_file = sys.argv[1]
