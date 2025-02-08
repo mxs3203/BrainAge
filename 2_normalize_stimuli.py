@@ -60,6 +60,8 @@ for stimuli in tqdm.tqdm(STIMULI):
     elif NORMALIZATION == "iqr":
         normalized_df = IQR_normalization(signal_df=signal_df, baseline_df=total_baseline)
         data.loc[data['task_name'] == stimuli['input'], EEG_COLUMNS] = normalized_df
+    elif NORMALIZATION == 'None':
+        pass
     else:
         print("Unknown normalization method...")
         break

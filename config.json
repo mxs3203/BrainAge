@@ -3,6 +3,19 @@
     "normalize_before_fft": 1,
     "normalization": "z-score",
     "filter_pass_threshold": {"mean": 90, "std":  0.1},
+    "fft_bands": {
+        "delta": [0.5, 4],
+        "theta": [4, 8],
+        "theta_type1": [7.5, 8.5],
+        "theta_type2": [4,7],
+        "alpha": [8, 12],
+        "beta":  [12, 30],
+        "low_beta": [12, 16],
+        "beta_med": [16, 20],
+        "high_beta": [20, 28],
+        "gamma": [30, 100],
+        "gamma_higher_brain": [39.5,40.5]
+    },
     "marker_groups": {
         "broca":["baseline_talk"],
         "frontal": ["make_sentence_instructions", "frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud", "frontal3_recall", "parietal_2d_3d",

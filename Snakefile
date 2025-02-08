@@ -6,9 +6,10 @@ SAMPLES = [os.path.basename(d) for d in glob("data/*") if os.path.isdir(d)]
 
 rule all:
     input:
-        expand("results/{sample}/2_normalized_data.csv",sample=SAMPLES),
         expand("results/{sample}/0_mean_sd.csv",sample=SAMPLES),
-        expand("results/{sample}/1_quality_filter.csv", sample=SAMPLES)
+        expand("results/{sample}/1_quality_filter.csv", sample=SAMPLES),
+        expand("results/{sample}/2_normalized_data.csv",sample=SAMPLES),
+        expand("results/{sample}/3_fft_data.pck", sample=SAMPLES)
 
 rule process_csv:
     input:
@@ -45,4 +46,16 @@ rule normalize_stimuli:
     shell:
         """
         python 2_normalize_stimuli.py {input.data} {output.data} > {log} 2>&1
+        """
+
+rule perform_fft:
+    input:
+        data=rules.normalize_stimuli.output.data
+    output:
+        data="results/{sample}/3_fft_data.pck"
+    log:
+        "logs/{sample}.log"
+    shell:
+        """
+        python 3_perform_fft.py {input.data} {output.data} > {log} 2>&1
         """
