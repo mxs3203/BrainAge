@@ -35,27 +35,35 @@ os.makedirs(output_folder, exist_ok=True)
 fft_results = {}
 df_dict = {}
 data = pd.read_csv(data_file)
+# for each stimuli
 for stimuli in tqdm.tqdm(STIMULI):
     heatmap_data = {}
+    # isolate the stimuli
     signal_df = data.loc[data['task_name'] == stimuli['input'], EEG_COLUMNS]
+    # for every column
     for channel in EEG_COLUMNS:
         channel_results = {}
+        # for every FFT bands defined in config
         for band, (low, high) in FFT_BANDS.items():
-
+            # isolate the values for each channel
             signal = signal_df[channel].values
+            # perform FFT and extract frequncies
             fft_complex = np.fft.fft(signal)
             fft_magnitude = np.abs(fft_complex)
             freq = np.fft.fftfreq(len(signal), d=1/256)  # 256hz iz sampling rate
-
+            # we are only interested in specific band
             band_mask = (freq >= low) & (freq < high)
-            if np.any(band_mask):  # Ensure there are frequency bins in this band.
+            if np.any(band_mask):  # if they exist compute the mean and store it
                 channel_results[band] = np.mean(fft_magnitude[band_mask])
             else:
                 channel_results[band] = np.nan
+        # store the data for this specific channel
         heatmap_data[channel] = channel_results
+    # this is EEG_columns by wavebands dataframe. Ideal for visualization
     heatmap_df = pd.DataFrame.from_dict(heatmap_data, orient='index')
     heatmap_df.index.name = "EEG Channel"
     heatmap_df = heatmap_df.reset_index()
+    # add it to fina ldictionary by the name of stimuli
     df_dict[stimuli['input']] = heatmap_df
 
 with open(output_file, 'wb') as file:
