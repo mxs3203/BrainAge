@@ -1,7 +1,7 @@
 {
     "DEBUG": 0,
     "normalize_before_fft": 1,
-    "normalization": "z-score",
+    "normalization": "basic",
     "filter_pass_threshold": {"mean": 90, "std":  0.1},
     "fft_bands": {
         "delta": [0.5, 4],
@@ -16,6 +16,7 @@
         "gamma": [30, 100],
         "gamma_higher_brain": [39.5,40.5]
     },
+    "brain_score_fft": ["beta", "low_beta", "high_beta", "beta_med", "gamma", "gamma_higher_brain"],
     "marker_groups": {
         "broca":["baseline_talk"],
         "frontal": ["frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud"],

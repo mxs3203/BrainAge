@@ -32,19 +32,24 @@ merged_brain_score_df = pd.concat(df_list, ignore_index=True)
 # Read the Excel file with subject information
 pilot_df = pd.read_excel("data/PilotDatasetSubjects.xlsx",skiprows=1)
 final_df = pd.merge(merged_brain_score_df, pilot_df, on="ID", how="right")
-
+final_df = final_df[final_df["ID"] != "BA10"]
 print("Final merged DataFrame saved as 'merged_final.csv'.")
 plt.figure(figsize=(10, 6))
-sns.lmplot(
+g = sns.lmplot(
     x="Age",
     y="BrainScore",
-    hue="Gender",
-    data=final_df,
-    markers=["o", "s"],  # Customize markers if you want different symbols for each gender
+    data=final_df,  # Customize markers if you want different symbols for each gender
     height=6,
     aspect=1.5,
     ci=95  # Confidence interval for the regression line
 )
+# Get the underlying Axes object
+ax = g.axes[0, 0]
+
+# Annotate each point with its ID.
+for idx, row in final_df.iterrows():
+    ax.text(row["Age"], row["BrainScore"], row["ID"], fontsize=8,
+            verticalalignment='bottom', horizontalalignment='right')
 plt.title("Correlation between Age and BrainScore")
 plt.xlabel("Age")
 plt.ylabel("BrainScore")
