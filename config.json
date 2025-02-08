@@ -1,5 +1,7 @@
 {
     "DEBUG": 0,
+    "normalize_before_fft": 1,
+    "normalization": "z-score",
     "marker_groups": {
         "broca":["baseline_talk"],
         "frontal": ["make_sentence_instructions", "frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud", "frontal3_recall", "parietal_2d_3d",

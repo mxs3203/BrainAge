@@ -23,15 +23,17 @@ EEG_COLUMNS.append(QUALITY)
 if DEBUG:
     data_file = "data/BA1/data.csv"
     markers_file = "data/BA1/marker.csv"
-    output_file = "results/BA1/total_data.csv"
-    output_file_stat = "results/BA1/mean_sd.csv"
+    output_file = "results/BA1/0_total_data.csv"
+    output_file_stat = "results/BA1/0_mean_sd.csv"
     output_folder = "/".join(output_file.split("/")[:2])
+    ID = output_folder.split("/")[1]
 else:
     data_file = sys.argv[1]
     markers_file = sys.argv[2]
     output_file = sys.argv[3]
     output_file_stat = sys.argv[4]
     output_folder = "/".join(output_file.split("/")[:2])
+    ID = output_folder.split("/")[1]
 
 
 os.makedirs(output_folder, exist_ok=True)
@@ -60,6 +62,7 @@ for marker in all_markers.keys():
 
     stimuli = data[(start+NUMBER_OF_ROWS_DISCARDED):(end-NUMBER_OF_ROWS_DISCARDED)][EEG_COLUMNS]
     stimuli['task_name'] = all_markers[marker]
+    stimuli['ID'] = ID
     mean_sd_values.append({'Column': all_markers[marker], 'Mean': stimuli[QUALITY].mean(), 'StdDev': stimuli[QUALITY].std(), 'NumberOfRows': np.shape(stimuli)[0]})
     total_data = pd.concat([total_data, stimuli], ignore_index=True)
 
