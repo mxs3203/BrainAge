@@ -18,8 +18,7 @@
     },
     "marker_groups": {
         "broca":["baseline_talk"],
-        "frontal": ["make_sentence_instructions", "frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud", "frontal3_recall", "parietal_2d_3d",
-            "parietal_next_in_seq", "parietal_next_in_seq2"],
+        "frontal": ["frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud"],
         "temporal_auditory":
         [   "intructions_listening", "make_sentence_instructions", "instructions_frontal_listening", "instructions_sequence_of_nums",
             "insturctions_read_numbers_aloud_listening", "instruction_memorize_words", "instruction_memorize_numbers",
@@ -71,7 +70,18 @@
         {"input": "image_sad", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "image_sad2", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "image_angry", "normalizeWith": ["eyesopen", "occipital4"]},
-        {"input": "image_angry2", "normalizeWith": ["eyesopen", "occipital4"]}
+        {"input": "image_angry2", "normalizeWith": ["eyesopen", "occipital4"]},
+        {"input": "intructions_listening", "normalizeWith": [ "eyesopen","occipital4"]},
+        {"input": "make_sentence_instructions","normalizeWith": ["eyesopen", "occipital4"]},
+        {"input": "instructions_frontal_listening", "normalizeWith": [ "eyesopen", "occipital4" ]},
+        { "input": "instructions_sequence_of_nums", "normalizeWith": ["eyesopen", "occipital4" ]},
+        {"input": "insturctions_read_numbers_aloud_listening", "normalizeWith": [ "eyesopen",  "occipital4"]},
+        {"input": "instruction_memorize_words", "normalizeWith": [ "eyesopen","occipital4"]},
+        {"input": "instruction_memorize_numbers","normalizeWith": ["eyesopen", "occipital4"]},
+        {"input": "instructions_occipital","normalizeWith": ["eyesopen", "occipital4" ]},
+        {"input": "instruction_precentral_gyrus","normalizeWith": ["eyesopen", "occipital4"]},
+        {"input": "paretial_instructions","normalizeWith": [ "eyesopen","occipital4"]},
+        {"input": "instructions_temporal_music_listening","normalizeWith": [ "eyesopen","occipital4"]}
     ],
     "EEG_columns":  [
         "EEG.AF3", "EEG.F7", "EEG.F3", "EEG.FC5", "EEG.T7",

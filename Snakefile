@@ -9,7 +9,8 @@ rule all:
         expand("results/{sample}/0_mean_sd.csv",sample=SAMPLES),
         expand("results/{sample}/1_quality_filter.csv", sample=SAMPLES),
         expand("results/{sample}/2_normalized_data.csv",sample=SAMPLES),
-        expand("results/{sample}/3_fft_data.pck", sample=SAMPLES)
+        expand("results/{sample}/3_fft_data.pck", sample=SAMPLES),
+        expand("results/{sample}/4_brain_score.csv", sample=SAMPLES)
 
 rule process_csv:
     input:
@@ -58,4 +59,16 @@ rule perform_fft:
     shell:
         """
         python 3_perform_fft.py {input.data} {output.data} > {log} 2>&1
+        """
+
+rule compute_brian_score:
+    input:
+        data=rules.normalize_stimuli.output.data
+    output:
+        data="results/{sample}/4_brain_score.csv"
+    log:
+        "logs/{sample}.log"
+    shell:
+        """
+        python 4_compute_brain_score.py {input.data} {output.data} > {log} 2>&1
         """
