@@ -34,7 +34,7 @@ os.makedirs(output_folder, exist_ok=True)
 quality_df = pd.read_csv(data_file)
 # Assign 'PASS' or 'FAIL' based on Mean value
 quality_df["Filter"] = quality_df.apply(
-    lambda row: "PASS" if (row["Mean"] >= PASS_THRESHOLD_mu and row["StdDev"] <= PASS_THRESHOLD_std) else "FAIL",
+    lambda row: "PASS" if (row["Mean"] >= PASS_THRESHOLD_mu) else "FAIL",
     axis=1
 )
 quality_df['ID'] = ID

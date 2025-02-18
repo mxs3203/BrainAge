@@ -1,8 +1,8 @@
 {
     "DEBUG": 0,
     "normalize_before_fft": 1,
-    "normalization": "basic",
-    "filter_pass_threshold": {"mean": 90, "std":  0.1},
+    "normalization": "z-score",
+    "filter_pass_threshold": {"mean": 5, "std":  100},
     "fft_bands": {
         "delta": [0.5, 4],
         "theta": [4, 8],
@@ -21,7 +21,7 @@
         "broca":["baseline_talk"],
         "frontal": ["frontal1_memorization", "frontal1_recall", "frontal2_memorization", "frontal2_recall", "frontal3_saying_outloud"],
         "temporal_auditory":
-        [   "intructions_listening", "make_sentence_instructions", "instructions_frontal_listening", "instructions_sequence_of_nums",
+        [   "instructions_listening", "make_sentence_instructions", "instructions_frontal_listening", "instructions_sequence_of_nums",
             "insturctions_read_numbers_aloud_listening", "instruction_memorize_words", "instruction_memorize_numbers",
             "instructions_occipital", "instruction_precentral_gyrus", "paretial_instructions", "instructions_temporal_music_listening",
             "temporal_how_many_instruments1", "temporal_how_many_instruments2", "temporal_how_many_instruments3", "temporal_how_many_instruments4"
@@ -72,7 +72,7 @@
         {"input": "image_sad2", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "image_angry", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "image_angry2", "normalizeWith": ["eyesopen", "occipital4"]},
-        {"input": "intructions_listening", "normalizeWith": [ "eyesopen","occipital4"]},
+        {"input": "instructions_listening", "normalizeWith": [ "eyesopen","occipital4"]},
         {"input": "make_sentence_instructions","normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "instructions_frontal_listening", "normalizeWith": [ "eyesopen", "occipital4" ]},
         { "input": "instructions_sequence_of_nums", "normalizeWith": ["eyesopen", "occipital4" ]},

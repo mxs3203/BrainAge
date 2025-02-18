@@ -22,8 +22,8 @@ STIMULI_GROUPS = config["marker_groups"]
 BRAIN_SCORE_PARAMS = config["brain_score_fft"]
 
 if DEBUG:
-    data_file = "results/BA1/3_fft_data.pck"
-    output_file = "results/BA1/5_brain_score_fft.csv"
+    data_file = "results/BA13/4_fft_data.pck"
+    output_file = "results/BA13/6_brain_score_fft.csv"
     output_folder = "/".join(output_file.split("/")[:2])
 else:
     data_file = sys.argv[1]
@@ -39,8 +39,11 @@ group_scores = {}
 for group, stimuli_list in STIMULI_GROUPS.items():
     group_data = pd.DataFrame()
     for stimuli in stimuli_list:
-        tmp = data[stimuli][BRAIN_SCORE_PARAMS]
-        group_data = pd.concat([group_data, tmp])
+        if np.shape(data[stimuli])[0] >= 1:
+            tmp = data[stimuli][BRAIN_SCORE_PARAMS]
+            group_data = pd.concat([group_data, tmp])
+        else:
+            print("No data for {}".format(stimuli))
     group_scores[group] = group_data.mean(axis=0).sum()
 
 df_scores = pd.DataFrame([group_scores])
