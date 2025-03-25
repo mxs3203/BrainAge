@@ -12,7 +12,9 @@ rule all:
         expand("results/{sample}/3_normalized_data.csv",sample=SAMPLES),
         expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
         expand("results/{sample}/5_brain_score.csv", sample=SAMPLES),
-        expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES)
+        expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES),
+        expand("results/{sample}/7_lstm_rdy_data.pck", sample=SAMPLES)
+
 
 rule process_csv:
     input:
@@ -98,4 +100,16 @@ rule compute_brian_score_fft:
     shell:
         """
         python 6_compute_brain_score_fft.py {input.data} {output.data} > {log} 2>&1
+        """
+
+rule prepare_data_for_lstm:
+    input:
+        data=rules.normalize_stimuli.output.data
+    output:
+        data="results/{sample}/7_lstm_rdy_data.pck"
+    log:
+        "logs/{sample}.log"
+    shell:
+        """
+        python 7_make_data_for_LSTM.py {input.data} {output.data} > {log} 2>&1
         """

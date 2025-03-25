@@ -1,5 +1,7 @@
 import json
 import os
+
+import numpy as np
 import seaborn as sns
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -15,7 +17,8 @@ for folder_name in os.listdir(parent_folder):
     subfolder_path = os.path.join(parent_folder, folder_name)
     if os.path.isdir(subfolder_path):
         # Build the full path for "4_brain_score.csv" inside the subfolder
-        csv_file = os.path.join(subfolder_path, "4_brain_score.csv")
+        csv_file = os.path.join(subfolder_path, "5_brain_score.csv")
+        #csv_file = os.path.join(subfolder_path, "6_brain_score_fft.csv")
         if os.path.exists(csv_file):
             # Read the CSV file
             df = pd.read_csv(csv_file)
@@ -32,7 +35,6 @@ merged_brain_score_df = pd.concat(df_list, ignore_index=True)
 # Read the Excel file with subject information
 pilot_df = pd.read_excel("data/PilotDatasetSubjects.xlsx",skiprows=1)
 final_df = pd.merge(merged_brain_score_df, pilot_df, on="ID", how="right")
-final_df = final_df[final_df["ID"] != "BA10"]
 print("Final merged DataFrame saved as 'merged_final.csv'.")
 plt.figure(figsize=(10, 6))
 g = sns.lmplot(
@@ -53,5 +55,15 @@ for idx, row in final_df.iterrows():
 plt.title("Correlation between Age and BrainScore")
 plt.xlabel("Age")
 plt.ylabel("BrainScore")
+plt.tight_layout()
+plt.show()
+
+cols_for_heatmap = ['broca', 'frontal', 'temporal_auditory', 'temporal', 'prefrontal', 'occipital', 'parietal', 'parietal_right', 'amygdala', 'BrainScore']
+final_df = final_df[cols_for_heatmap].dropna()
+plt.figure(figsize=(8, 6))
+sns.heatmap(np.log10(final_df[cols_for_heatmap]), annot=True, cmap='viridis', fmt=".2f")
+plt.title("Heatmap of Sample DataFrame")
+plt.xlabel("Columns")
+plt.ylabel("Rows")
 plt.tight_layout()
 plt.show()
