@@ -11,7 +11,7 @@ from tqdm import tqdm
 class EEGDataset(Dataset):
     def __init__(self, root_dir):
         self.samples = []
-
+        print("Preloading entire data into memory...")
         for subject_folder in tqdm(glob.glob(root_dir + '/*')):
             path_to_pck = os.path.join(subject_folder, "7_lstm_rdy_data.pck")
             if os.path.exists(path_to_pck):
@@ -29,9 +29,3 @@ class EEGDataset(Dataset):
 
         return x, y
 
-dataset = EEGDataset(root_dir="../results")
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True, drop_last=True)
-for batch_x, batch_y in dataloader:
-    print(batch_x.shape)  # (batch_size, window_size, 14)
-    print(batch_y.shape)  # (batch_size,)
-    break  # just to inspect one batch
