@@ -1,3 +1,6 @@
 /data/
 /Env/
 /results/
+/Modeling/EEGModel_40.pth
+/Modeling/EEGModel_60_twilightDust.pth
+/Modeling/EEGModel_160_superplanet.pth

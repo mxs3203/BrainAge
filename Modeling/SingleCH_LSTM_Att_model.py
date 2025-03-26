@@ -31,17 +31,17 @@ class ChannelWiseLSTMModel(nn.Module):
         # Apply LSTM to each channel independently
         for i in range(self.num_channels):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
-            out, (hn, _) = self.lstm_per_channel[i](channel_input)  # hn: [1, batch, hidden]
-            features.append(hn[-1])  # [batch, hidden_size]
+            out, _ = self.lstm_per_channel[i](channel_input)
+            features.append(out.mean(dim=1))
 
         # Stack features: [batch, 14, hidden_size]
         channel_features = torch.stack(features, dim=1)
 
         # Apply self-attention across channels
-        attn_output, _ = self.attention(channel_features, channel_features, channel_features)
-
+        attn_output, attn_weights = self.attention(channel_features, channel_features, channel_features, need_weights=True, average_attn_weights=False)
+        attn_weights = attn_weights.mean(dim=1)
         # Flatten and pass through dense layers
         out = attn_output.reshape(batch_size, -1)  # [batch, 14 * hidden_size]
         out = self.relu(self.fc1(out))
         out = self.fc2(out)
-        return out.squeeze(1), attn_output
+        return out.squeeze(1), attn_weights
