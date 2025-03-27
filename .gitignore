@@ -1,6 +1,9 @@
 /data/
 /Env/
 /results/
-/Modeling/EEGModel_40.pth
+/Modeling/EEGModel_40_helpful_leaf.pth
 /Modeling/EEGModel_60_twilightDust.pth
 /Modeling/EEGModel_160_superplanet.pth
+/Modeling/model_chkpoints/
+/Modeling/wandb/
+/Modeling/ContrastiveModel_chkpoints/
