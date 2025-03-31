@@ -34,10 +34,3 @@ class LazyEEGDataset(Dataset):
         y = torch.tensor(sample["Age"], dtype=torch.float32)   # scalar
 
         return x, y
-
-dataset = LazyEEGDataset(root_dir="../results")
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
-for batch_x, batch_y in dataloader:
-    print(batch_x.shape)  # (batch_size, window_size, 14)
-    print(batch_y.shape)  # (batch_size,)
-    break  # just to inspect one batch

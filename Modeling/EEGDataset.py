@@ -26,6 +26,7 @@ class EEGDataset(Dataset):
         sample = self.samples[idx]
         x = torch.tensor(sample["data"], dtype=torch.float32)  # shape: (window_size, 14)
         y = torch.tensor(sample["Age"], dtype=torch.float32)  # single float
-
-        return x, y
+        id = sample["ID"]
+        stimulus = sample["stimulus"]
+        return x, y, id, stimulus
 

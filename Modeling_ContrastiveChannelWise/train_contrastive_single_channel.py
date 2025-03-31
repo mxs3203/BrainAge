@@ -7,12 +7,17 @@ from Modeling_ContrastiveChannelWise.ChannelEncoder import ChannelEncoder
 from Modeling_ContrastiveChannelWise.EEGContrastiveDataset import EEGContrastiveDataset
 from utils.UnsupervisedContrastiveLoss import nt_xent_loss
 
+channel_order = [
+        "EEG.AF3", "EEG.F7", "EEG.F3", "EEG.FC5", "EEG.T7",
+        "EEG.P7", "EEG.O1", "EEG.O2", "EEG.P8", "EEG.T8",
+        "EEG.FC6", "EEG.F4", "EEG.F8", "EEG.AF4"
+]
 def train_channel(CH):
         LR = 1e-4
         hidden_size = 32
         num_lstm_layers = 1
         projection_size = 16
-        num_epochs = 50
+        num_epochs = 50 + 1
         BATCH_SIZE = 1024
 
         dataset = EEGContrastiveDataset(root_dir="../results", channel_idx=CH, contrastive=True, all_channels=False)
@@ -86,7 +91,7 @@ def train_channel(CH):
         wandb.finish()
 
 def main():
-    for CH in range(13):
+    for CH in [8,9,10,11,12,13]:
         train_channel(CH)
 
 if __name__ == "__main__":

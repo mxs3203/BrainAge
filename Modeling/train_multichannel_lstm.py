@@ -6,7 +6,7 @@ from tqdm import tqdm
 import wandb
 from Modeling.BasicMultiChannelLSTM import EEG_LSTM
 from Modeling.EEGDataset import EEGDataset
-from Modeling.SingleCH_LSTM_Att_model import ChannelWiseLSTMModel
+from Modeling.SingleCH_LSTM_Contrastive_Att_model import ChannelWiseLSTMContrastiveModel
 from utils.Visualization import plot_attention_heatmaps
 import seaborn as sns
 
@@ -17,11 +17,12 @@ val_size = len(dataset) - train_size
 
 
 LR = 1e-4
-hidden_size = 16
-num_lstm_layers = 4
-num_epochs = 400
+hidden_size = 32
+projection_size = 16
+num_lstm_layers = 1
+num_epochs = 200
 BATCH_SIZE = 512
-num_att_heads = 8
+num_att_heads = 32
 
 
 train_set, val_set = random_split(dataset, [train_size, val_size])
@@ -32,7 +33,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model, loss, optimizer
 #model = EEG_LSTM(input_size=14, hidden_size=hidden_size, num_layers=num_lstm_layers).to(device)
-model = ChannelWiseLSTMModel(hidden_size=hidden_size, attention_heads=num_att_heads, num_layers=num_lstm_layers)
+model = ChannelWiseLSTMContrastiveModel(hidden_size=hidden_size, attention_heads=num_att_heads, projection_head_size=projection_size, num_layers=num_lstm_layers)
 if torch.cuda.device_count() > 1:
     print(f"Using {torch.cuda.device_count()} GPUs!")
     model = nn.DataParallel(model, device_ids=[0, 1])
