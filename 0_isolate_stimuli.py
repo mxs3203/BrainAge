@@ -1,13 +1,14 @@
 import json
 import os
 import sys
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
 
 with open("config.json", "r") as f:
     config = json.load(f)
+
+with open("what_to_remove.json", "r") as f:
+    what_to_remove = json.load(f)
 
 '''
     Reading Configuration
@@ -23,10 +24,10 @@ EEG_COLUMNS.append(QUALITY)
 EEG_COLUMNS+= config['channel_quality_columns']
 EEG_COLUMNS+= config['pow_columns']
 if DEBUG:
-    data_file = "data/BA1/data.csv"
-    markers_file = "data/BA1/marker.csv"
-    output_file = "results/BA1/0_total_data.csv"
-    output_file_stat = "results/BA1/0_mean_sd.csv"
+    data_file = "data/BA13/data.csv"
+    markers_file = "data/BA13/marker.csv"
+    output_file = "results/BA13/0_total_data.csv"
+    output_file_stat = "results/BA13/0_mean_sd.csv"
     output_folder = "/".join(output_file.split("/")[:2])
     ID = output_folder.split("/")[1]
 else:
@@ -36,6 +37,12 @@ else:
     output_file_stat = sys.argv[4]
     output_folder = "/".join(output_file.split("/")[:2])
     ID = output_folder.split("/")[1]
+
+if ID in what_to_remove.keys():
+    remove = what_to_remove[ID]
+else:
+    remove = []
+    print("Nothing to remove...")
 
 
 os.makedirs(output_folder, exist_ok=True)
@@ -52,22 +59,23 @@ all_markers = dict(zip(markers['marker_id'], markers['type']))
 total_data = pd.DataFrame()
 mean_sd_values = []
 for marker in all_markers.keys():
-    start_i = data[data["MarkerIndex"] == marker].index
-    end_i = data[data["MarkerIndex"] == -marker].index
-    if not start_i.empty and not end_i.empty:
-        start = start_i.values[0]
-        end = end_i.values[0]
+    if all_markers[marker] not in remove:
+        start_i = data[data["MarkerIndex"] == marker].index
+        end_i = data[data["MarkerIndex"] == -marker].index
+        if not start_i.empty and not end_i.empty:
+            start = start_i.values[0]
+            end = end_i.values[0]
+        else:
+            print(f"Marker {marker} not found in data.")
+            break
+
+        stimuli = data[(start+NUMBER_OF_ROWS_DISCARDED):(end-NUMBER_OF_ROWS_DISCARDED)][EEG_COLUMNS]
+        stimuli['task_name'] = all_markers[marker]
+        stimuli['ID'] = ID
+        mean_sd_values.append({'Column': all_markers[marker], 'Mean': stimuli[QUALITY].mean(), 'StdDev': stimuli[QUALITY].std(), 'NumberOfRows': np.shape(stimuli)[0]})
+        total_data = pd.concat([total_data, stimuli], ignore_index=True)
     else:
-        print(f"Marker {marker} not found in data.")
-        break
-
-
-    stimuli = data[(start+NUMBER_OF_ROWS_DISCARDED):(end-NUMBER_OF_ROWS_DISCARDED)][EEG_COLUMNS]
-    stimuli['task_name'] = all_markers[marker]
-    stimuli['ID'] = ID
-    mean_sd_values.append({'Column': all_markers[marker], 'Mean': stimuli[QUALITY].mean(), 'StdDev': stimuli[QUALITY].std(), 'NumberOfRows': np.shape(stimuli)[0]})
-    total_data = pd.concat([total_data, stimuli], ignore_index=True)
-
+        print("Removing {} because of what_to_remove.json...".format(all_markers[marker]))
 total_data.to_csv("{}".format(output_file), index=False)
 mean_sd_df = pd.DataFrame(mean_sd_values)
 mean_sd_df.to_csv("{}".format(output_file_stat), index=False)

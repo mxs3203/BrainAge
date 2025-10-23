@@ -6,7 +6,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
-with open("config.json", "r") as f:
+with open("../config.json", "r") as f:
     config = json.load(f)
 
 '''
