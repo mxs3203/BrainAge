@@ -20,6 +20,8 @@ QUALITY = config["Quality"]
 NUMBER_OF_ROWS_DISCARDED = config["number_of_rows_discarded"]
 
 EEG_COLUMNS.append(QUALITY)
+EEG_COLUMNS+= config['channel_quality_columns']
+EEG_COLUMNS+= config['pow_columns']
 if DEBUG:
     data_file = "data/BA1/data.csv"
     markers_file = "data/BA1/marker.csv"

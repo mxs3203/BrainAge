@@ -8,12 +8,14 @@ rule all:
     input:
         expand("results/{sample}/0_mean_sd.csv",sample=SAMPLES),
         expand("results/{sample}/1_quality_filter.csv", sample=SAMPLES),
-        expand("results/{sample}/2_filtered_data.csv", sample=SAMPLES),
-        expand("results/{sample}/3_normalized_data.csv",sample=SAMPLES),
-        expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
-        expand("results/{sample}/5_brain_score.csv", sample=SAMPLES),
-        expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES),
-        expand("results/{sample}/7_lstm_rdy_data.pck", sample=SAMPLES)
+        expand("results/{sample}/2_emotiv_fft_values.csv", sample=SAMPLES),
+        expand("results/{sample}/2_non_normalized_dictionary_of_stimuli.pck", sample=SAMPLES),
+        expand("results/{sample}/2_consecutive_rows_report.csv", sample=SAMPLES),
+        expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES)
+        # expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
+        # expand("results/{sample}/5_brain_score.csv", sample=SAMPLES),
+        # expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES),
+        # expand("results/{sample}/7_lstm_rdy_data.pck", sample=SAMPLES)
 
 
 rule process_csv:
@@ -29,6 +31,19 @@ rule process_csv:
         """
         python 0_isolate_stimuli.py {input.data} {input.markers} {output.data} {output.stat} > {log} 2>&1
         """
+
+rule extract_emotiv_fft:
+    input:
+        data=rules.process_csv.output.data
+    output:
+        emotiv_fft="results/{sample}/2_emotiv_fft_values.csv"
+    log:
+        "logs/{sample}.log"
+    shell:
+        """
+           python 2_isolate_emotiv_fft.py {input.data} {output.emotiv_fft} > {log} 2>&1
+        """
+
 rule inspect_quality:
     input:
         stat=rules.process_csv.output.stat
@@ -43,22 +58,22 @@ rule inspect_quality:
 
 rule filter_samples:
     input:
-        data = rules.process_csv.output.data,
-        stat=rules.inspect_quality.output.report
+        data = rules.process_csv.output.data
     output:
-        data="results/{sample}/2_filtered_data.csv"
+        dict="results/{sample}/2_non_normalized_dictionary_of_stimuli.pck",
+        report="results/{sample}/2_consecutive_rows_report.csv"
     log:
         "logs/{sample}.log"
     shell:
         """
-        python 2_filter_data_for_quality.py {input.data} {input.stat} {output.data} > {log} 2>&1
+        python 2_consecutive_rows.py {input.data} {output.dict} {output.report} > {log} 2>&1
         """
 
 rule normalize_stimuli:
     input:
-        data=rules.filter_samples.output.data
+        data=rules.filter_samples.output.dict
     output:
-        data="results/{sample}/3_normalized_data.csv"
+        data="results/{sample}/3_normalized_dictionary_of_stimuli.pck"
     log:
         "logs/{sample}.log"
     shell:

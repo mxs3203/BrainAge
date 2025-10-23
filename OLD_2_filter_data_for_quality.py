@@ -18,12 +18,12 @@ EEG_COLUMNS = config["EEG_columns"]
 QUALITY = config["Quality"]
 # Number of rows = 256samples/second×0.2seconds=51.2rows
 NUMBER_OF_ROWS_DISCARDED = config["number_of_rows_discarded"]
-
 EEG_COLUMNS.append(QUALITY)
+
 if DEBUG:
-    data_file = "results/BA7/0_total_data.csv"
-    quality_file = "results/BA7/1_quality_filter.csv"
-    output_file = "results/BA7/2_filtered_data.csv"
+    data_file = "results/BA1/0_total_data.csv"
+    quality_file = "results/BA1/1_quality_filter.csv"
+    output_file = "results/BA1/2_filtered_data.csv"
     output_folder = "/".join(output_file.split("/")[:2])
     ID = output_folder.split("/")[1]
 else:
