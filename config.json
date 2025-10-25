@@ -4,8 +4,8 @@
     "normalization": "z-score",
     "filter_pass_threshold": {"mean": 50, "std":  100},
     "filter_for_extract_emotiv_fft": 2,
-    "overal_q_thrs": 70,
-    "channel_q_thrs": 2,
+    "overal_q_thrs": 50,
+    "channel_q_thrs": 1,
     "fft_bands": {
         "delta": [0.5, 4],
         "theta": [4, 8],
@@ -97,7 +97,7 @@
         "CQ.P7",  "CQ.O1", "CQ.O2", "CQ.P8",  "CQ.T8",
         "CQ.FC6", "CQ.F4", "CQ.F8", "CQ.AF4"
     ],
-    "number_of_rows_discarded": 100,
+    "number_of_rows_discarded": 50,
     "Quality": "CQ.Overall",
     "motion_columns":[
         "MOT.CounterMems", "MOT.InterpolatedMems", "MOT.Q0", "MOT.Q1", "MOT.Q2", "MOT.Q3",

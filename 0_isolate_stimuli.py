@@ -24,10 +24,10 @@ EEG_COLUMNS.append(QUALITY)
 EEG_COLUMNS+= config['channel_quality_columns']
 EEG_COLUMNS+= config['pow_columns']
 if DEBUG:
-    data_file = "data/BA13/data.csv"
-    markers_file = "data/BA13/marker.csv"
-    output_file = "results/BA13/0_total_data.csv"
-    output_file_stat = "results/BA13/0_mean_sd.csv"
+    data_file = "data/BA55/data.csv"
+    markers_file = "data/BA55/marker.csv"
+    output_file = "results/BA55/0_total_data.csv"
+    output_file_stat = "results/BA55/0_mean_sd.csv"
     output_folder = "/".join(output_file.split("/")[:2])
     ID = output_folder.split("/")[1]
 else:

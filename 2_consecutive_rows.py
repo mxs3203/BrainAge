@@ -26,9 +26,9 @@ OVERALL_Q_THRS = config['overal_q_thrs']
 CHANNEL_Q_THRS = config['channel_q_thrs']
 
 if DEBUG:
-    data_file = "results/BA1/0_total_data.csv"
-    output_file = "results/BA1/2_non_normalized_dictionary_of_stimuli.pck"
-    output_report_file = "results/BA1/2_consecutive_rows_report.csv"
+    data_file = "results/BA68/0_total_data.csv"
+    output_file = "results/BA68/2_non_normalized_dictionary_of_stimuli.pck"
+    output_report_file = "results/BA68/2_consecutive_rows_report.csv"
     output_folder = "/".join(output_file.split("/")[:2])
     ID = output_folder.split("/")[1]
 else:

@@ -21,8 +21,8 @@ QUALITY = config["Quality"]
 NORMALIZATION = config["normalization"]
 
 if DEBUG:
-    data_file = "results/BA1/2_non_normalized_dictionary_of_stimuli.pck"
-    output_file = "results/BA1/3_normalized_dictionary_of_stimuli.pck"
+    data_file = "results/BA66/2_non_normalized_dictionary_of_stimuli.pck"
+    output_file = "results/BA66/3_normalized_dictionary_of_stimuli.pck"
     output_folder = "/".join(output_file.split("/")[:2])
 else:
     data_file = sys.argv[1]

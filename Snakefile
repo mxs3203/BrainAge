@@ -11,14 +11,14 @@ rule all:
         expand("results/{sample}/2_emotiv_fft_values.csv", sample=SAMPLES),
         expand("results/{sample}/2_non_normalized_dictionary_of_stimuli.pck", sample=SAMPLES),
         expand("results/{sample}/2_consecutive_rows_report.csv", sample=SAMPLES),
-        expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES)
-        # expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
+        expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES),
+        expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
         # expand("results/{sample}/5_brain_score.csv", sample=SAMPLES),
         # expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES),
         # expand("results/{sample}/7_lstm_rdy_data.pck", sample=SAMPLES)
 
 
-rule process_csv:
+rule isolate_stimuli_based_on_markers:
     input:
         data="data/{sample}/data.csv",
         markers="data/{sample}/marker.csv"
@@ -34,7 +34,7 @@ rule process_csv:
 
 rule extract_emotiv_fft:
     input:
-        data=rules.process_csv.output.data
+        data=rules.isolate_stimuli_based_on_markers.output.data
     output:
         emotiv_fft="results/{sample}/2_emotiv_fft_values.csv"
     log:
@@ -46,7 +46,7 @@ rule extract_emotiv_fft:
 
 rule inspect_quality:
     input:
-        stat=rules.process_csv.output.stat
+        stat=rules.isolate_stimuli_based_on_markers.output.stat
     output:
         report="results/{sample}/1_quality_filter.csv"
     log:
@@ -58,7 +58,7 @@ rule inspect_quality:
 
 rule filter_samples:
     input:
-        data = rules.process_csv.output.data
+        data = rules.isolate_stimuli_based_on_markers.output.data
     output:
         dict="results/{sample}/2_non_normalized_dictionary_of_stimuli.pck",
         report="results/{sample}/2_consecutive_rows_report.csv"
@@ -93,29 +93,6 @@ rule perform_fft:
         python 4_perform_fft.py {input.data} {output.data} > {log} 2>&1
         """
 
-rule compute_brian_score:
-    input:
-        data=rules.normalize_stimuli.output.data
-    output:
-        data="results/{sample}/5_brain_score.csv"
-    log:
-        "logs/{sample}.log"
-    shell:
-        """
-        python 5_compute_brain_score.py {input.data} {output.data} > {log} 2>&1
-        """
-
-rule compute_brian_score_fft:
-    input:
-        data=rules.perform_fft.output.data
-    output:
-        data="results/{sample}/6_brain_score_fft.csv"
-    log:
-        "logs/{sample}.log"
-    shell:
-        """
-        python 6_compute_brain_score_fft.py {input.data} {output.data} > {log} 2>&1
-        """
 
 rule prepare_data_for_lstm:
     input:
@@ -126,5 +103,5 @@ rule prepare_data_for_lstm:
         "logs/{sample}.log"
     shell:
         """
-        python 7_make_data_for_LSTM.py {input.data} {output.data} > {log} 2>&1
+        python 5_make_data_for_LSTM.py {input.data} {output.data} > {log} 2>&1
         """
