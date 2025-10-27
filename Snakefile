@@ -13,9 +13,7 @@ rule all:
         expand("results/{sample}/2_consecutive_rows_report.csv", sample=SAMPLES),
         expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES),
         expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
-        # expand("results/{sample}/5_brain_score.csv", sample=SAMPLES),
-        # expand("results/{sample}/6_brain_score_fft.csv", sample=SAMPLES),
-        # expand("results/{sample}/7_lstm_rdy_data.pck", sample=SAMPLES)
+        expand("results/{sample}/5_lstm_rdy_data.txt", sample=SAMPLES)
 
 
 rule isolate_stimuli_based_on_markers:
@@ -98,10 +96,10 @@ rule prepare_data_for_lstm:
     input:
         data=rules.normalize_stimuli.output.data
     output:
-        data="results/{sample}/7_lstm_rdy_data.pck"
+        flag="results/{sample}/5_lstm_rdy_data.txt"
     log:
         "logs/{sample}.log"
     shell:
         """
-        python 5_make_data_for_LSTM.py {input.data} {output.data} > {log} 2>&1
+        python 5_make_data_for_LSTM.py {input.data} {output.flag} > {log} 2>&1
         """

@@ -9,11 +9,11 @@ class EEGAugmentor:
 
     def __call__(self, x, prob):
         # x: [seq_len, channels]
-        if random.random() < prob:
+        if random.random() < 0.7:
             x = self.jitter(x)
-        if random.random() < prob:
+        if random.random() < 0.5:
             x = self.scaling(x)
-        if random.random() < prob:
+        if random.random() < 0.3:
             x = self.time_mask(x)
         return x
 
