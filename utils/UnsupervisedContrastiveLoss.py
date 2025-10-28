@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 def nt_xent_loss(z_i, z_j, temperature=0.05):
+    N = z_i.size(0)
     z = torch.cat([z_i, z_j], dim=0)  # [2N, D]
     z = F.normalize(z, dim=1)
     sim_matrix = torch.matmul(z, z.T) / temperature  # [2N, 2N]
@@ -12,9 +13,7 @@ def nt_xent_loss(z_i, z_j, temperature=0.05):
     sim_matrix.masked_fill_(mask, -9e15)  # Use large neg number instead of -inf
 
     # Create positive pair indices
-    positive_indices = torch.arange(batch_size, device=z.device)
-    labels = torch.cat([positive_indices + batch_size, positive_indices], dim=0)
+    pos = torch.cat([torch.arange(N, 2 * N), torch.arange(0, N)]).to(z.device)
 
-    # For each row in sim_matrix, the correct positive is at labels[i]
-    loss = F.cross_entropy(sim_matrix, labels)
+    loss = F.cross_entropy(sim_matrix, pos)
     return loss

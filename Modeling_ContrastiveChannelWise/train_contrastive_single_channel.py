@@ -26,11 +26,15 @@ def train_channel(channel_idx, channel_name):
     projection_size = 16
     num_epochs = 50 + 1
     TEMP = 0.05
-    BATCH_SIZE = 20000
+    BATCH_SIZE = 15000
+    prob_jitter = 0.2
+    prob_scale = 0.2
+    prob_time_mask = 0.2
     augmentor = EEGAugmentor()
 
     def contrastive_transform(x):
-        return augmentor(x.clone(), prob=0.2), augmentor(x.clone(), prob=0.2)
+        return augmentor(x.clone(), prob_jitter, prob_scale, prob_time_mask), augmentor(x.clone(), prob_jitter,
+                                                                                        prob_scale, prob_time_mask)
     dataset = EEGDataset(root_dir="../results/EEG_LSTM_windows", channels=channel_idx, transform=contrastive_transform)
 
 
@@ -107,7 +111,7 @@ def train_channel(channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name != "EEG.AF3" | ch_name != "EEG.F7":
+        if ch_name not in ["EEG.AF3", "EEG.F7"] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

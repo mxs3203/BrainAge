@@ -7,13 +7,13 @@ class EEGAugmentor:
     def __init__(self):
         pass
 
-    def __call__(self, x, prob):
+    def __call__(self, x, prob_jitter, prob_scale, prob_time_mask):
         # x: [seq_len, channels]
-        if random.random() < 0.7:
+        if random.random() < prob_jitter:
             x = self.jitter(x)
-        if random.random() < 0.5:
+        if random.random() < prob_scale:
             x = self.scaling(x)
-        if random.random() < 0.3:
+        if random.random() < prob_time_mask:
             x = self.time_mask(x)
         return x
 

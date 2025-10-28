@@ -1,6 +1,7 @@
 import glob
 import os
 import pickle
+import random
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -9,7 +10,7 @@ from tqdm import tqdm
 
 
 class EEGDataset(Dataset):
-    def __init__(self, root_dir, channels="all", target="Age", transform=None, preload=False):
+    def __init__(self, root_dir, channels="all", target="Age", transform=None, preload=False, subset_size=None,seed=27):
         self.root_dir = root_dir
         self.pkl_files = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if f.endswith(".pkl")]
         if not self.pkl_files:
@@ -21,14 +22,24 @@ class EEGDataset(Dataset):
         self.channel_idx = channels
 
         sample = self._load_pickle(self.pkl_files[0])
-        self.all_eeg_cols = [c for c in sample.keys() if c.startswith("EEG.")] \
+        self.all_eeg_cols = [c for c in sample.keyscd () if c.startswith("EEG.")] \
             if isinstance(sample, dict) and "X" not in sample else [f"EEG.{i}" for i in range(sample["X"].shape[1])]
+
+        if subset_size is not None:
+            random.seed(seed)
+            random.shuffle(self.pkl_files)
+            self.pkl_files = self.pkl_files[:subset_size]
+            print(f"⚙️ Using subset of {subset_size}/{len(self.pkl_files)} windows from {root_dir}")
+        else:
+            self.pkl_files = self.pkl_files
+            print(f"Loaded full dataset with {len(self.pkl_files)} windows from {root_dir}")
 
         print("Preloading entire data into memory...")
         if preload:
             self.data = [self._load_pickle(fp) for fp in self.pkl_files]
         else:
             self.data = None
+
     def _load_pickle(self, file_path):
         with open(file_path, "rb") as f:
             return pickle.load(f)
