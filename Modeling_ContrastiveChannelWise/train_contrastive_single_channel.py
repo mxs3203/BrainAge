@@ -20,6 +20,8 @@ channel_order = config["EEG_columns"]
 
 def train_channel(channel_idx, channel_name):
     os.makedirs("ContrastiveModel_chkpoints", exist_ok=True)
+
+
     LR = 1e-3
     hidden_size = 32
     num_lstm_layers = 1
@@ -111,7 +113,7 @@ def train_channel(channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ["EEG.AF3", "EEG.F7"] :
+        if ch_name not in [] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

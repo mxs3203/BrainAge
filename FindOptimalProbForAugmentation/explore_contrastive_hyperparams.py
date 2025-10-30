@@ -37,9 +37,9 @@ def train_channel(trial,channel_idx, channel_name):
     TEMP = trial.suggest_float("temp", 0.05, 0.15)
     BATCH_SIZE = 10000
 
-    prob_jitter = trial.suggest_float("prob_jitter", 0.1, 0.7)
+    prob_jitter = trial.suggest_float("prob_jitter", 0.1, 0.5)
     prob_scale = trial.suggest_float("prob_scale", 0.1, 0.5)
-    prob_time_mask = trial.suggest_float("prob_time_mask", 0.1, 0.5)
+    prob_time_mask = trial.suggest_float("prob_time_mask", 0.1, 0.3)
     augmentor = EEGAugmentor()
 
     def contrastive_transform(x):
@@ -116,6 +116,7 @@ def train_channel(trial,channel_idx, channel_name):
             uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
         Z = torch.cat([z1, z2], dim=0)
         mean_std, dead_frac = collapse_score(Z)
+        mean_std, dead_frac = mean_std.item(), dead_frac.item()
     total_val_loss /= len(val_loader)
     mean_align = sum(alignments) / len(alignments)
     mean_unif = sum(uniformities) / len(uniformities)
@@ -159,12 +160,13 @@ def train_channel(trial,channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in [] :
+        if ch_name not in ['EEG.O1','EEG.P7', 'EEG.FC5', 'EEG.T7', 'EEG.F3', 'EEG.F7', 'EEG.AF3', 'EEG.O2','EEG.P8'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             study = optuna.create_study(
                 study_name=ch_name,
                 storage="sqlite:///db.sqlite3",
                 direction="minimize",
+                load_if_exists=True,
                 sampler=optuna.samplers.TPESampler(seed=42)
             )
             study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=50, n_jobs=1)

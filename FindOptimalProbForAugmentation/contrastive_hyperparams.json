@@ -1,0 +1,114 @@
+{
+    "EEG.O1": {
+      "hidden_size": 55,
+      "projection_size": 13,
+      "temp": 0.0557,
+      "prob_jitter": 0.25,
+      "prob_scale": 0.42,
+      "prob_time_mask": 0.11
+    },
+   "EEG.P7": {
+      "hidden_size": 63,
+      "projection_size": 14,
+      "temp": 0.05032,
+      "prob_jitter": 0.22711,
+      "prob_scale": 0.4387,
+      "prob_time_mask": 0.15978
+    },
+  "EEG.T7": {
+      "hidden_size": 48,
+      "projection_size": 13,
+      "temp": 0.05183,
+      "prob_jitter": 0.2333,
+      "prob_scale": 0.4035,
+      "prob_time_mask": 0.1010
+    },
+   "EEG.FC5": {
+      "hidden_size": 61,
+      "projection_size": 15,
+      "temp": 0.05033,
+      "prob_jitter": 0.31,
+      "prob_scale": 0.35,
+      "prob_time_mask": 0.106
+    },
+   "EEG.F3": {
+      "hidden_size": 55,
+      "projection_size": 16,
+      "temp": 0.0504,
+      "prob_jitter": 0.2491,
+      "prob_scale": 0.1907,
+      "prob_time_mask": 0.1238
+    },
+   "EEG.F7": {
+      "hidden_size": 55,
+      "projection_size": 12,
+      "temp": 0.051177,
+      "prob_jitter": 0.15127,
+      "prob_scale": 0.2739,
+      "prob_time_mask": 0.1157
+    },
+  "EEG.AF3": {
+      "hidden_size": 64,
+      "projection_size": 13,
+      "temp": 0.05046,
+      "prob_jitter": 0.1371,
+      "prob_scale": 0.2420,
+      "prob_time_mask": 0.2485
+    },
+    "EEG.O2": {
+      "hidden_size": 63,
+      "projection_size": 13,
+      "temp": 0.0507,
+      "prob_jitter": 0.12246,
+      "prob_scale": 0.2032,
+      "prob_time_mask": 0.1167
+    },
+  "EEG.P8": {
+      "hidden_size": 51,
+      "projection_size": 12,
+      "temp": 0.0503,
+      "prob_jitter": 0.23711,
+      "prob_scale": 0.3936,
+      "prob_time_mask": 0.23
+    },
+    "EEG.T8": {
+      "hidden_size": 61,
+      "projection_size": 15,
+      "temp": 0.0500,
+      "prob_jitter": 0.22956,
+      "prob_scale": 0.1739,
+      "prob_time_mask": 0.1200
+    },
+    "EEG.FC6": {
+      "hidden_size": 51,
+      "projection_size": 13,
+      "temp": 0.05032,
+      "prob_jitter": 0.23711,
+      "prob_scale": 0.3707,
+      "prob_time_mask": 0.1005
+    },
+    "EEG.F4": {
+      "hidden_size": 53,
+      "projection_size": 15,
+      "temp": 0.05646,
+      "prob_jitter": 0.3362,
+      "prob_scale": 0.3103,
+      "prob_time_mask": 0.1001
+    },
+  "EEG.F8": {
+      "hidden_size": 53,
+      "projection_size": 15,
+      "temp": 0.0500,
+      "prob_jitter": 0.2609,
+      "prob_scale": 0.4615,
+      "prob_time_mask": 0.1001
+    },
+    "EEG.AF4": {
+      "hidden_size": 53,
+      "projection_size": 14,
+      "temp": 0.0500,
+      "prob_jitter": 0.1531,
+      "prob_scale": 0.21300,
+      "prob_time_mask": 0.1001
+    }
+}
