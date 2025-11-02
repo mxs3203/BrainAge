@@ -2,6 +2,7 @@ import glob
 import os
 import pickle
 import random
+from collections import defaultdict
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -34,8 +35,8 @@ class EEGDataset(Dataset):
             self.pkl_files = self.pkl_files
             print(f"Loaded full dataset with {len(self.pkl_files)} windows from {root_dir}")
 
-        print("Preloading entire data into memory...")
         if preload:
+            print("Preloading entire data into memory...")
             self.data = [self._load_pickle(fp) for fp in self.pkl_files]
         else:
             self.data = None

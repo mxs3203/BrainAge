@@ -2,6 +2,25 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import umap
+
+
+def visualize_umap(Z, title="UMAP of validation embeddings", n_points=5000):
+    Z = Z.detach().cpu().numpy()
+    if Z.shape[0] > n_points:
+        idx = np.random.choice(Z.shape[0], n_points, replace=False)
+        Z = Z[idx]
+
+    reducer = umap.UMAP(n_neighbors=30, min_dist=0.1, metric="cosine", random_state=42)
+    Z_2d = reducer.fit_transform(Z)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    scatter = ax.scatter(Z_2d[:, 0], Z_2d[:, 1], s=5, alpha=0.6)
+    ax.set_title(title)
+    ax.set_xlabel("UMAP-1")
+    ax.set_ylabel("UMAP-2")
+    plt.tight_layout()
+    return fig
 
 def plot_attention_heatmaps(epoch, attn_weights, output_var, channel_names=[
         "EEG.AF3", "EEG.F7", "EEG.F3", "EEG.FC5", "EEG.T7",

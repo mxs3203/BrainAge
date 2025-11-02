@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import os
 
-from Modeling_ContrastiveChannelWise.ChannelEncoder import ChannelEncoder
+from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 
 
 class ChannelWiseLSTMContrastiveModel(nn.Module):

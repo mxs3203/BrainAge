@@ -1,12 +1,12 @@
 {
-    "DEBUG": 1,
+    "DEBUG": 0,
     "meta_data_path": "data/PilotDatasetSubjects.xlsx",
-    "normalization": "z-score",
+    "normalization": "basic",
     "filter_pass_threshold": {"mean": 50, "std":  100},
     "filter_for_extract_emotiv_fft": 2,
     "overal_q_thrs": 50,
     "channel_q_thrs": 1,
-    "window_size": 50,
+    "window_size": 512,
     "stride": 1,
     "fft_bands": {
         "delta": [0.5, 4],
