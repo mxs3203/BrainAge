@@ -59,3 +59,16 @@ class EEGConvGRUEncoder(nn.Module):
         emb = F.normalize(emb, dim=1)                  # normalize for cosine similarity
 
         return emb
+
+class ModelWrapper(torch.nn.Module):
+    def __init__(self, full_model, channel_idx):
+        super().__init__()
+        self.base_model = full_model.module if isinstance(full_model, torch.nn.DataParallel) else full_model
+        self.channel_idx = channel_idx
+
+    def forward(self, x):
+        # x shape [B, L]
+        x_full = torch.zeros(x.shape[0], x.shape[1], len(self.base_model.eeg_columns)).to(x.device)
+        x_full[:,:,self.channel_idx] = x
+        out, _ = self.base_model(x_full)
+        return out

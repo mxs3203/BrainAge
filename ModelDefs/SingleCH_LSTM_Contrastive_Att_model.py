@@ -5,13 +5,13 @@ import torch.nn as nn
 import os
 
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
-from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 
 
 class AgeModel(nn.Module):
     def __init__(self, attention_heads=1,
                  pretrained_dir="ContrastiveModel_chkpoints",
-                 hyperparam_config="../FindOptimalProbForAugmentation/contrastive_hyperparams.json"):
+                 hyperparam_config="../FindOptimalProbForAugmentation/contrastive_hyperparams.json",
+                 unlock_encoders=True):
         super(AgeModel, self).__init__()
 
         with open(hyperparam_config, "r") as f:
@@ -58,7 +58,7 @@ class AgeModel(nn.Module):
 
             # Freeze all parameters
             for param in model.parameters():
-                param.requires_grad = True
+                param.requires_grad = unlock_encoders
 
             self.encoders.append(model)
 
