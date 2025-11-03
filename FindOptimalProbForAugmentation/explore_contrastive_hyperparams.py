@@ -6,6 +6,7 @@ import pandas as pd
 
 import torch
 from torch import nn, optim
+from torch.nn.functional import dropout
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
@@ -25,14 +26,12 @@ results = pd.DataFrame(columns=[
     "Prob_Jitter", "Prob_Scale", "Prob_TimeMask",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
-    "Score"
+    "Score", "ModelType"
 ])
 
 def train_channel(trial,channel_idx, channel_name):
     LR = 1e-3
-    hidden_size = trial.suggest_int("hidden_size", 8, 64)
-    num_lstm_layers = trial.suggest_int("lstm_layers", 1, 3)
-    projection_size = trial.suggest_int("projection_size", 8, 32)
+
     num_epochs = 50
     TEMP = trial.suggest_float("temp", 0.05, 0.5)
     BATCH_SIZE = trial.suggest_int("batch_size", 256, 1024)
@@ -54,17 +53,34 @@ def train_channel(trial,channel_idx, channel_name):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if model_type == 'LSTM':
+        hidden_size = trial.suggest_int("hidden_size", 8, 64)
+        num_lstm_layers = trial.suggest_int("lstm_layers", 1, 3)
+        projection_size = trial.suggest_int("projection_size", 8, 16)
+        dropout = trial.suggest_float("dropout", 0, 0.3)
+
         model = ChannelEncoder(
             input_size=1,
             lstm_hidden_size=hidden_size,
             lstm_layers=num_lstm_layers,
-            proj_dim=projection_size
+            proj_dim=projection_size,
+            dropout=dropout
         )
     else:
+        hidden_size = trial.suggest_int("hidden_size", 8, 64)
+        num_layers_gru = trial.suggest_int("num_layers_gru", 1, 3)
+        projection_size = trial.suggest_int("projection_size", 8, 16)
+        kernel_size = trial.suggest_int("kernel_size", 2, 9)
+        stride = trial.suggest_int("stride", 2, 9)
+        padding = trial.suggest_int("padding", 1, 4)
+
         model = EEGConvGRUEncoder(
             hidden_size=hidden_size,
             gru_hidden=hidden_size,
-            embedding_dim=projection_size
+            embedding_dim=projection_size,
+            num_layers_gru=num_layers_gru,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding
         )
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -85,7 +101,6 @@ def train_channel(trial,channel_idx, channel_name):
             "learning_rate": LR,
             "hidden_size": hidden_size,
             "input_size": 1 if channel_idx != "all" else len(channel_order),
-            "num_lstm_layers": num_lstm_layers,
             "temperature": TEMP,
             "projection_size": projection_size,
             #"probabilies" : [prob_jitter, prob_scale, prob_time_mask],
@@ -165,6 +180,7 @@ def train_channel(trial,channel_idx, channel_name):
         "Collapse_MeanStd": mean_std,
         "Collapse_DeadFrac": dead_frac,
         "Score": score,
+        "ModelType": model_type
     }
     global results
     results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)

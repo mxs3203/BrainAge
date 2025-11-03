@@ -1,114 +1,142 @@
 {
-    "EEG.O1": {
-      "hidden_size": 55,
-      "projection_size": 13,
-      "temp": 0.0557,
-      "prob_jitter": 0.25,
-      "prob_scale": 0.42,
-      "prob_time_mask": 0.11
+    "EEG.AF4": {
+      "modelType": "CONVGRU",
+      "hidden_size": 42,
+      "batch_size": 263,
+      "projection_size": 12,
+      "temp": 0.0804,
+      "num_layers_gru": 1,
+      "kernel_size": 8,
+      "stride": 4
+    },
+   "EEG.F8": {
+      "modelType": "CONVGRU",
+      "hidden_size": 49,
+      "batch_size": 256,
+      "projection_size": 16,
+      "temp": 0.1168,
+      "num_layers_gru": 1,
+      "kernel_size": 8,
+      "stride": 5
+    },
+   "EEG.F4": {
+      "modelType": "CONVGRU",
+      "hidden_size": 35,
+      "batch_size": 256,
+      "projection_size": 9,
+      "temp": 0.0782,
+      "num_layers_gru": 1,
+      "kernel_size": 4,
+      "stride": 2
+    },
+   "EEG.FC6": {
+      "modelType": "CONVGRU",
+      "hidden_size": 36,
+      "batch_size": 256,
+      "projection_size": 15,
+      "temp": 0.0509,
+      "num_layers_gru": 1,
+      "kernel_size": 4,
+      "stride": 2
+    },
+   "EEG.T8": {
+      "modelType": "CONVGRU",
+      "hidden_size": 26,
+      "batch_size": 256,
+      "projection_size": 9,
+      "temp": 0.0502,
+      "num_layers_gru": 2,
+      "kernel_size": 5,
+      "stride": 2
+    },
+   "EEG.P8": {
+      "modelType": "CONVGRU",
+      "hidden_size": 26,
+      "batch_size": 258,
+      "projection_size": 15,
+      "temp": 0.05511,
+      "num_layers_gru": 1,
+      "kernel_size": 9,
+      "stride": 8
+    },
+   "EEG.O2": {
+      "modelType": "CONVGRU",
+      "hidden_size": 62,
+      "batch_size": 292,
+      "projection_size": 14,
+      "temp": 0.0763,
+      "num_layers_gru": 2,
+      "kernel_size": 9,
+      "stride": 2
+    },
+   "EEG.O1": {
+      "modelType": "CONVGRU",
+      "hidden_size": 60,
+      "batch_size": 278,
+      "projection_size": 8,
+      "temp": 0.062,
+      "num_layers_gru": 3,
+      "kernel_size": 4,
+      "stride": 2
     },
    "EEG.P7": {
-      "hidden_size": 63,
-      "projection_size": 14,
-      "temp": 0.05032,
-      "prob_jitter": 0.22711,
-      "prob_scale": 0.4387,
-      "prob_time_mask": 0.15978
+      "modelType": "CONVGRU",
+      "hidden_size": 32,
+      "batch_size": 263,
+      "projection_size": 8,
+      "temp": 0.066,
+      "num_layers_gru": 2,
+      "kernel_size": 4,
+      "stride": 2
     },
-  "EEG.T7": {
-      "hidden_size": 48,
-      "projection_size": 13,
-      "temp": 0.05183,
-      "prob_jitter": 0.2333,
-      "prob_scale": 0.4035,
-      "prob_time_mask": 0.1010
+   "EEG.T7": {
+      "modelType": "CONVGRU",
+      "hidden_size": 64,
+      "batch_size": 290,
+      "projection_size": 10,
+      "temp": 0.0508,
+      "num_layers_gru": 3,
+      "kernel_size": 8,
+      "stride": 6
     },
    "EEG.FC5": {
+      "modelType": "CONVGRU",
       "hidden_size": 61,
-      "projection_size": 15,
-      "temp": 0.05033,
-      "prob_jitter": 0.31,
-      "prob_scale": 0.35,
-      "prob_time_mask": 0.106
+      "batch_size": 256,
+      "projection_size": 9,
+      "temp": 0.0623,
+      "num_layers_gru": 2,
+      "kernel_size": 8,
+      "stride": 2
     },
    "EEG.F3": {
-      "hidden_size": 55,
-      "projection_size": 16,
-      "temp": 0.0504,
-      "prob_jitter": 0.2491,
-      "prob_scale": 0.1907,
-      "prob_time_mask": 0.1238
+      "modelType": "CONVGRU",
+      "hidden_size": 18,
+      "batch_size": 317,
+      "projection_size": 10,
+      "temp": 0.1168,
+      "num_layers_gru": 1,
+      "kernel_size": 9,
+      "stride": 2
     },
    "EEG.F7": {
-      "hidden_size": 55,
-      "projection_size": 12,
-      "temp": 0.051177,
-      "prob_jitter": 0.15127,
-      "prob_scale": 0.2739,
-      "prob_time_mask": 0.1157
+      "modelType": "CONVGRU",
+      "hidden_size": 34,
+      "batch_size": 259,
+      "projection_size": 9,
+      "temp": 0.0512,
+      "num_layers_gru": 1,
+      "kernel_size": 5,
+      "stride": 2
     },
-  "EEG.AF3": {
-      "hidden_size": 64,
-      "projection_size": 13,
-      "temp": 0.05046,
-      "prob_jitter": 0.1371,
-      "prob_scale": 0.2420,
-      "prob_time_mask": 0.2485
-    },
-    "EEG.O2": {
+   "EEG.AF3": {
+      "modelType": "CONVGRU",
       "hidden_size": 63,
-      "projection_size": 13,
-      "temp": 0.0507,
-      "prob_jitter": 0.12246,
-      "prob_scale": 0.2032,
-      "prob_time_mask": 0.1167
-    },
-  "EEG.P8": {
-      "hidden_size": 51,
-      "projection_size": 12,
-      "temp": 0.0503,
-      "prob_jitter": 0.23711,
-      "prob_scale": 0.3936,
-      "prob_time_mask": 0.23
-    },
-    "EEG.T8": {
-      "hidden_size": 61,
-      "projection_size": 15,
-      "temp": 0.0500,
-      "prob_jitter": 0.22956,
-      "prob_scale": 0.1739,
-      "prob_time_mask": 0.1200
-    },
-    "EEG.FC6": {
-      "hidden_size": 51,
-      "projection_size": 13,
-      "temp": 0.05032,
-      "prob_jitter": 0.23711,
-      "prob_scale": 0.3707,
-      "prob_time_mask": 0.1005
-    },
-    "EEG.F4": {
-      "hidden_size": 53,
-      "projection_size": 15,
-      "temp": 0.05646,
-      "prob_jitter": 0.3362,
-      "prob_scale": 0.3103,
-      "prob_time_mask": 0.1001
-    },
-  "EEG.F8": {
-      "hidden_size": 53,
-      "projection_size": 15,
-      "temp": 0.0500,
-      "prob_jitter": 0.2609,
-      "prob_scale": 0.4615,
-      "prob_time_mask": 0.1001
-    },
-    "EEG.AF4": {
-      "hidden_size": 53,
-      "projection_size": 14,
-      "temp": 0.0500,
-      "prob_jitter": 0.1531,
-      "prob_scale": 0.21300,
-      "prob_time_mask": 0.1001
+      "batch_size": 285,
+      "projection_size": 8,
+      "temp": 0.0608,
+      "num_layers_gru": 3,
+      "kernel_size": 6,
+      "stride": 2
     }
 }

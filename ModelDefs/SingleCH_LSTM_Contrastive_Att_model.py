@@ -1,47 +1,72 @@
+import json
+
 import torch
 import torch.nn as nn
 import os
 
+from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 
 
-class ChannelWiseLSTMContrastiveModel(nn.Module):
-    def __init__(self, hidden_size=64, attention_heads=1, fc_hidden=64, projection_head_size=16, num_layers=1, pretrained_dir="ContrastiveModel_chkpoints"):
-        super(ChannelWiseLSTMContrastiveModel, self).__init__()
+class AgeModel(nn.Module):
+    def __init__(self, attention_heads=1,
+                 pretrained_dir="ContrastiveModel_chkpoints",
+                 hyperparam_config="../FindOptimalProbForAugmentation/contrastive_hyperparams.json"):
+        super(AgeModel, self).__init__()
 
-        self.num_channels = 14
-        self.hidden_size = hidden_size
+        with open(hyperparam_config, "r") as f:
+            hyperparam_config_dict = json.load(f)
+        with open("../config.json", "r") as f:
+            config = json.load(f)
+
+        self.eeg_columns = config['EEG_columns']
 
         # Load 1 pretrained ChannelEncoder per channel and freeze them
         self.encoders = nn.ModuleList()
-        for i in range(self.num_channels):
-            encoder = ChannelEncoder(lstm_hidden_size=hidden_size, lstm_layers=num_layers, proj_dim=projection_head_size)
-            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{i}_Epoch40.pth")
+        for channel_name in config['EEG_columns']:
+            hyperparams = hyperparam_config_dict[channel_name]
+            hidden_size = hyperparams['hidden_size']
+            num_layers_gru = hyperparams['num_layers_gru']
+            projection_size = hyperparams['projection_size']
+            KERNEL_SIZE = hyperparams['kernel_size']
+            STRIDE = hyperparams['stride']
+
+            model = EEGConvGRUEncoder(
+                hidden_size=hidden_size,
+                gru_hidden=hidden_size,
+                embedding_dim=projection_size,
+                num_layers_gru=num_layers_gru,
+                kernel_size=KERNEL_SIZE,
+                stride=STRIDE,
+                padding=STRIDE
+            )
+
+            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch1000.pth")
             print(path)
             if os.path.exists(path):
-                print(f"Loading pretrained ChannelEncoder for channel {i} from {path}")
+                print(f"Loading pretrained ChannelEncoder for channel {channel_name} from {path}")
                 checkpoint = torch.load(path, map_location=torch.device('cuda'))
                 state_dict = checkpoint
 
                 # If model was trained with DataParallel, the keys will have 'module.' prefix
                 if any(k.startswith('module.') for k in state_dict.keys()):
-                    print(f"⚠️ Detected 'module.' prefix in the state_dict. Removing it...")
+                    print(f"Detected 'module.' prefix in the state_dict. Removing it...")
                     state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-                encoder.load_state_dict(state_dict)
+                model.load_state_dict(state_dict)
             else:
                 raise FileNotFoundError(f"Missing pretrained model at {path}")
 
             # Freeze all parameters
-            for param in encoder.parameters():
-                param.requires_grad = False
+            for param in model.parameters():
+                param.requires_grad = True
 
-            self.encoders.append(encoder)
+            self.encoders.append(model)
 
         # Self-attention across channels (not time!)
-        self.attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=attention_heads, batch_first=True)
+        self.attention = nn.MultiheadAttention(embed_dim=152, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(hidden_size * self.num_channels, 1024)
+        self.fc1 = nn.Linear(152, 1024)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(1024, 1024)
         self.fc3 = nn.Linear(1024, 512)
@@ -51,15 +76,16 @@ class ChannelWiseLSTMContrastiveModel(nn.Module):
         # x: [batch, seq_len, 14]
         batch_size = x.size(0)
         features = []
-
+        segment_lengths = []
         # Apply each pretrained encoder to its respective channel
-        for i in range(self.num_channels):
+        for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
-            feature = self.encoders[i].lstm(channel_input)[1][0][-1]  # use raw LSTM output
-            features.append(feature)
+            f = self.encoders[i](channel_input)  # use raw output
+            features.append(f)
+            segment_lengths.append(f.shape[1])
 
         # Stack features: [batch, 14, hidden_size]
-        channel_features = torch.stack(features, dim=1)
+        channel_features = torch.cat(features, dim=1)
 
         # Apply self-attention across channels
         attn_output, attn_weights = self.attention(

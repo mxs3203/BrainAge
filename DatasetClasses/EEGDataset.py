@@ -4,6 +4,7 @@ import pickle
 import random
 from collections import defaultdict
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
@@ -51,6 +52,21 @@ class EEGDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx] if self.data else self._load_pickle(self.pkl_files[idx])
         X = sample["X"]  # numpy array (window_size, num_channels)
+
+        # expected_len = 512
+        # expected_ch = 14
+        #
+        # # Validate shape
+        # ok = False
+        # if X.ndim == 2:
+        #     L, C = X.shape
+        #     if (L == expected_len and C == expected_ch) or (C == expected_len and L == expected_ch):
+        #         ok = True
+        #
+        # if not ok:
+        #     # ⚠ skip this sample — pick another one at random
+        #     new_idx = (idx + 1) % len(self)
+        #     return self.__getitem__(new_idx)
 
         # --- Channel selection ---
         if self.channel_idx != "all":

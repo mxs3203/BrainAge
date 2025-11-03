@@ -7,6 +7,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
+from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 
 from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
@@ -36,22 +37,15 @@ def train_channel(channel_idx, channel_name):
     with open("../FindOptimalProbForAugmentation/contrastive_hyperparams.json", "r") as f:
         config = json.load(f)
     hyperparams = config[channel_name]
-    LR = 1e-3
+    LR = 1e-4
     hidden_size = hyperparams['hidden_size']
-    num_lstm_layers = 1
+    num_layers_gru = hyperparams['num_layers_gru']
     projection_size = hyperparams['projection_size']
-    num_epochs = 200
+    num_epochs = 1000
     TEMP = hyperparams['temp']
-    BATCH_SIZE = 4048
-    # prob_jitter = hyperparams['prob_jitter']
-    # prob_scale = hyperparams['prob_scale']
-    # prob_time_mask = hyperparams['prob_time_mask']
-    # augmentor = EEGAugmentor()
-    #
-    # def contrastive_transform(x):
-    #     return augmentor(x.clone(), prob_jitter, prob_scale, prob_time_mask), augmentor(x.clone(), prob_jitter,
-    #                                                                                     prob_scale, prob_time_mask)
-    # dataset = EEGDataset(root_dir="../results/EEG_LSTM_windows", channels=channel_idx, transform=contrastive_transform, preload=False)
+    BATCH_SIZE = hyperparams['batch_size']
+    KERNEL_SIZE = hyperparams['kernel_size']
+    STRIDE = hyperparams['stride']
     dataset = EEGContrastivePairs(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
@@ -67,11 +61,14 @@ def train_channel(channel_idx, channel_name):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = ChannelEncoder(
-        input_size=1,
-        lstm_hidden_size=hidden_size,
-        lstm_layers=num_lstm_layers,
-        proj_dim=projection_size
+    model = EEGConvGRUEncoder(
+        hidden_size=hidden_size,
+        gru_hidden=hidden_size,
+        embedding_dim=projection_size,
+        num_layers_gru=num_layers_gru,
+        kernel_size=KERNEL_SIZE,
+        stride=STRIDE,
+        padding=STRIDE
     )
 
     if torch.cuda.device_count() > 1:
@@ -94,7 +91,7 @@ def train_channel(channel_idx, channel_name):
             "learning_rate": LR,
             "hidden_size": hidden_size,
             "input_size": 1 if channel_idx != "all" else len(channel_order),
-            "num_lstm_layers": num_lstm_layers,
+            "num_layers_gru": num_layers_gru,
             "temperature": TEMP,
             "FullData": True
         }
@@ -119,7 +116,7 @@ def train_channel(channel_idx, channel_name):
         total_val_loss = 0
         alignments, uniformities = [], []
         with torch.no_grad():
-            for x1, x2, _ in val_loader:
+            for i, (x1, x2, meta) in enumerate(val_loader):
                 x1, x2 = x1.to(device), x2.to(device)
                 z1, z2 = model(x1), model(x2)
                 loss = nt_xent_loss(z1, z2)
@@ -147,14 +144,14 @@ def train_channel(channel_idx, channel_name):
             "Val/DeadFrac": dead_frac,
             "Val/Score": score
         })
-        if epoch % 10 == 0:
+        if epoch % 50 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in [] :
+        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

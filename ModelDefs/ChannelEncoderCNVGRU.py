@@ -3,16 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class EEGConvGRUEncoder(nn.Module):
-    def __init__(self, input_channels=1, hidden_size=128, gru_hidden=128, embedding_dim=64):
+    def __init__(self, input_channels=1, hidden_size=128,
+                 num_layers_gru=1,gru_hidden=128, embedding_dim=64, kernel_size=7, stride=2, padding=1):
         super().__init__()
 
         # --- Convolutional feature extractor ---
         self.conv = nn.Sequential(
-            nn.Conv1d(input_channels, 32, kernel_size=7, stride=2, padding=3),  # [B, 32, L/2]
+            nn.Conv1d(input_channels, 32, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
             nn.BatchNorm1d(32),
             nn.ReLU(),
 
-            nn.Conv1d(32, hidden_size, kernel_size=3, stride=2, padding=1),     # [B, H, L/8]
+            nn.Conv1d(32, hidden_size, kernel_size=int(kernel_size/2), stride=stride, padding=int(padding/2)),     # [B, H, L/8]
             nn.BatchNorm1d(hidden_size),
             nn.ReLU()
         )
@@ -21,7 +22,7 @@ class EEGConvGRUEncoder(nn.Module):
         self.gru = nn.GRU(
             input_size=hidden_size,
             hidden_size=gru_hidden,
-            num_layers=1,
+            num_layers=num_layers_gru,
             batch_first=True,
             bidirectional=True
         )
