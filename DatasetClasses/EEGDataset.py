@@ -2,11 +2,10 @@ import glob
 import os
 import pickle
 import random
-from collections import defaultdict
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
 
@@ -14,7 +13,24 @@ from tqdm import tqdm
 class EEGDataset(Dataset):
     def __init__(self, root_dir, channels="all", target="Age", transform=None, preload=False, subset_size=None,seed=27):
         self.root_dir = root_dir
+        self.pkl_files = []
         self.pkl_files = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if f.endswith(".pkl")]
+
+        # bad = []
+        # for f in tqdm(os.listdir(root_dir)):
+        #     if not f.endswith(".pkl"):
+        #         continue
+        #     p = os.path.join(root_dir, f)
+        #     with open(p, "rb") as fh:
+        #         s = pickle.load(fh)
+        #     X = s["X"]
+        #     if np.isnan(X).any() or len(X) != 512:
+        #         bad.append((f, X.shape))
+        #     else:
+        #         self.pkl_files.append(os.path.join(root_dir, f))
+        #
+        # print("Bad files:", bad)
+        # print("Total bad:", len(bad))
         if not self.pkl_files:
             raise ValueError(f"No .pkl files found in {root_dir}")
 
@@ -52,21 +68,11 @@ class EEGDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx] if self.data else self._load_pickle(self.pkl_files[idx])
         X = sample["X"]  # numpy array (window_size, num_channels)
-
-        # expected_len = 512
-        # expected_ch = 14
-        #
-        # # Validate shape
-        # ok = False
-        # if X.ndim == 2:
-        #     L, C = X.shape
-        #     if (L == expected_len and C == expected_ch) or (C == expected_len and L == expected_ch):
-        #         ok = True
-        #
-        # if not ok:
-        #     # ⚠ skip this sample — pick another one at random
-        #     new_idx = (idx + 1) % len(self)
-        #     return self.__getitem__(new_idx)
+        if isinstance(X, np.ndarray):
+            if X.shape != (512, 14):
+                self.__getitem__(np.random.randint(0, len(self)))
+        else:
+            self.__getitem__(np.random.randint(0, len(self)))
 
         # --- Channel selection ---
         if self.channel_idx != "all":

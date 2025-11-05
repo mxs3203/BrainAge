@@ -23,10 +23,10 @@ channel_order = config["EEG_columns"]
 
 results = pd.DataFrame(columns=[
     "Channel", "Trial", "HiddenSize", "ProjSize", "Temp",
-    "Prob_Jitter", "Prob_Scale", "Prob_TimeMask",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
-    "Score", "ModelType"
+    "Score", "ModelType", "KernelSize", "Padding", "Stride",
+    "KernelSize2", "Padding2", "Stride2"
 ])
 
 def train_channel(trial,channel_idx, channel_name):
@@ -34,9 +34,9 @@ def train_channel(trial,channel_idx, channel_name):
 
     num_epochs = 50
     TEMP = trial.suggest_float("temp", 0.05, 0.5)
-    BATCH_SIZE = trial.suggest_int("batch_size", 256, 1024)
+    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256)
 
-    model_type = trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
+    model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
 
     dataset = EEGContrastivePairs(
         data_dir="../results/EEG_LSTM_windows/",
@@ -70,9 +70,12 @@ def train_channel(trial,channel_idx, channel_name):
         num_layers_gru = trial.suggest_int("num_layers_gru", 1, 3)
         projection_size = trial.suggest_int("projection_size", 8, 16)
         kernel_size = trial.suggest_int("kernel_size", 2, 9)
-        stride = trial.suggest_int("stride", 2, 9)
+        stride = trial.suggest_int("stride", 1, 2)
         padding = trial.suggest_int("padding", 1, 4)
-
+        kernel_size2 = trial.suggest_int("kernel_size2", 2, 9)
+        stride2 = trial.suggest_int("stride2", 1, 2)
+        padding2 = trial.suggest_int("padding2", 1, 4)
+        channels = trial.suggest_int("Conv1DChannels", 8, 128)
         model = EEGConvGRUEncoder(
             hidden_size=hidden_size,
             gru_hidden=hidden_size,
@@ -80,7 +83,11 @@ def train_channel(trial,channel_idx, channel_name):
             num_layers_gru=num_layers_gru,
             kernel_size=kernel_size,
             stride=stride,
-            padding=padding
+            padding=padding,
+            kernel_size2=kernel_size2,
+            stride2=stride2,
+            padding2=padding2,
+            conv_channels=channels
         )
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -103,7 +110,6 @@ def train_channel(trial,channel_idx, channel_name):
             "input_size": 1 if channel_idx != "all" else len(channel_order),
             "temperature": TEMP,
             "projection_size": projection_size,
-            #"probabilies" : [prob_jitter, prob_scale, prob_time_mask],
             "modelType": model_type
         }
     )
@@ -124,10 +130,10 @@ def train_channel(trial,channel_idx, channel_name):
         total_train_loss /= len(train_loader)
         print(
         f"Epoch {epoch + 1}/{num_epochs} | Train Loss: {total_train_loss:.4f}")
-        wandb.log({
-            "Train/Loss": total_train_loss,
-            "Epoch": epoch
-        })
+        # wandb.log({
+        #     "Train/Loss": total_train_loss,
+        #     "Epoch": epoch
+        # })
 
     # Validation
     model.eval()
@@ -170,9 +176,12 @@ def train_channel(trial,channel_idx, channel_name):
         "HiddenSize": hidden_size,
         "ProjSize": projection_size,
         "Temp": TEMP,
-        # "Prob_Jitter": prob_jitter,
-        # "Prob_Scale": prob_scale,
-        # "Prob_TimeMask": prob_time_mask,
+        "KernelSize": kernel_size,
+        "Padding": padding,
+        "Stride": stride,
+        "KernelSize2": kernel_size2,
+        "Padding2": padding2,
+        "Stride2": stride2,
         "Train_Loss": total_train_loss,
         "Val_Loss": total_val_loss,
         "Alignment": mean_align,
@@ -198,7 +207,7 @@ def main():
                 storage="sqlite:///db.sqlite3",
                 direction="minimize",
                 load_if_exists=True,
-                sampler=optuna.samplers.TPESampler(seed=42)
+                sampler=optuna.samplers.TPESampler(seed=27)
             )
             study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=100, n_jobs=1)
 

@@ -21,23 +21,21 @@ channel_order = config["EEG_columns"]
 def main():
     BATCH_SIZE = 1024
     LR = 1e-3
-    num_epochs = 200
+    num_epochs = 100
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = EEGDataset(
-        root_dir="../results/EEG_LSTM_windows/", channels="all", target="Age", transform=None, preload=False, subset_size=500000
+        root_dir="../results/EEG_LSTM_windows/", channels="all", target="Age", transform=None, preload=False, subset_size=2000000
     )
 
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=True, num_workers=10,
-                              pin_memory=True, persistent_workers=True)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=True, num_workers=10, pin_memory=True,
-                            persistent_workers=True)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE)
 
-    model = AgeModel(attention_heads=2, unlock_encoders=False)
+    model = AgeModel(attention_heads=2, unlock_encoders=True)
 
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -91,8 +89,8 @@ def main():
         })
         plt.close(fig)
         plt.close(fig2)
-        # if epoch % 50 == 0:
-        #     torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
+        if epoch % 10 == 0:
+            torch.save(model.state_dict(), "ContrastiveModel_chkpoints/FullModel_Epoch{}.pth".format(epoch))
 
     wandb.finish()
 

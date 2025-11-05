@@ -4,18 +4,20 @@ import torch.nn.functional as F
 
 class EEGConvGRUEncoder(nn.Module):
     def __init__(self, input_channels=1, hidden_size=128,
-                 num_layers_gru=1,gru_hidden=128, embedding_dim=64, kernel_size=7, stride=2, padding=1):
+                 num_layers_gru=1,gru_hidden=128, embedding_dim=64,
+                 kernel_size=7, stride=2, padding=1, conv_channels=32,
+                 kernel_size2=7, stride2=2, padding2=1):
         super().__init__()
 
         # --- Convolutional feature extractor ---
         self.conv = nn.Sequential(
-            nn.Conv1d(input_channels, 32, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
+            nn.Conv1d(input_channels, conv_channels, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
+            nn.BatchNorm1d(conv_channels),
+            nn.GELU(),
 
-            nn.Conv1d(32, hidden_size, kernel_size=int(kernel_size/2), stride=stride, padding=int(padding/2)),     # [B, H, L/8]
+            nn.Conv1d(conv_channels, hidden_size, kernel_size=kernel_size2, stride=stride2, padding=padding2),     # [B, H, L/8]
             nn.BatchNorm1d(hidden_size),
-            nn.ReLU()
+            nn.GELU(),
         )
 
         # --- GRU over time (sequence dimension after conv) ---
@@ -30,7 +32,7 @@ class EEGConvGRUEncoder(nn.Module):
         # --- Projection head (embedding for contrastive learning) ---
         self.projector = nn.Sequential(
             nn.Linear(gru_hidden * 2, embedding_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(embedding_dim, embedding_dim)
         )
 
