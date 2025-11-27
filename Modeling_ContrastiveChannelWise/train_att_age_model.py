@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
 from DatasetClasses.EEGDataset import EEGDataset
-from ModelDefs.SingleCH_LSTM_Contrastive_Att_model import AgeModel
+from ModelDefs.AttAgeModel import AgeModel
 from Modeling_ContrastiveChannelWise.visualize_model import visualize_all_channels, \
     visualize_integrated_gradients_all_channels
 
@@ -19,13 +19,13 @@ with open("../config.json", "r") as f:
 channel_order = config["EEG_columns"]
 
 def main():
-    BATCH_SIZE = 1024
-    LR = 1e-3
-    num_epochs = 100
+    BATCH_SIZE = 512
+    LR = 1e-4
+    num_epochs = 1000
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = EEGDataset(
-        root_dir="../results/EEG_LSTM_windows/", channels="all", target="Age", transform=None, preload=False, subset_size=2000000
+        root_dir="../results/EEG_LSTM_windows/", channels="all", target="Age", transform=None, preload=False, subset_size=250000
     )
 
     train_size = int(0.8 * len(dataset))
@@ -35,7 +35,7 @@ def main():
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE)
 
-    model = AgeModel(attention_heads=2, unlock_encoders=True)
+    model = AgeModel(attention_heads=1, unlock_encoders=False)
 
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")

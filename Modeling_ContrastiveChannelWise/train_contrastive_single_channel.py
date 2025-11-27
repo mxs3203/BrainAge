@@ -43,9 +43,16 @@ def train_channel(channel_idx, channel_name):
     projection_size = hyperparams['projection_size']
     num_epochs = 1000
     TEMP = hyperparams['temp']
-    BATCH_SIZE = hyperparams['batch_size']
-    KERNEL_SIZE = hyperparams['kernel_size']
-    STRIDE = hyperparams['stride']
+    BATCH_SIZE = 256#hyperparams['batch_size']
+
+    kernel_size = hyperparams['kernel_size']
+    kernel_size2 = hyperparams['kernel_size2']
+    stride2 = hyperparams['stride2']
+    stride = hyperparams['stride']
+    padding2 = hyperparams['padding2']
+    padding = hyperparams['padding']
+    channels = hyperparams['channels']
+
     dataset = EEGContrastivePairs(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
@@ -66,9 +73,13 @@ def train_channel(channel_idx, channel_name):
         gru_hidden=hidden_size,
         embedding_dim=projection_size,
         num_layers_gru=num_layers_gru,
-        kernel_size=KERNEL_SIZE,
-        stride=STRIDE,
-        padding=STRIDE
+        kernel_size=kernel_size,
+        stride=stride,
+        padding=padding,
+        kernel_size2=kernel_size2,
+        stride2=stride2,
+        padding2=padding2,
+        conv_channels=channels
     )
 
     if torch.cuda.device_count() > 1:
@@ -144,14 +155,14 @@ def train_channel(channel_idx, channel_name):
             "Val/DeadFrac": dead_frac,
             "Val/Score": score
         })
-        if epoch % 50 == 0:
+        if epoch >= 900 and epoch % 50 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
+        if ch_name in ['EEG.AF3', 'EEG.F7'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

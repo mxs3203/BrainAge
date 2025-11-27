@@ -28,17 +28,26 @@ class AgeModel(nn.Module):
             hidden_size = hyperparams['hidden_size']
             num_layers_gru = hyperparams['num_layers_gru']
             projection_size = hyperparams['projection_size']
-            KERNEL_SIZE = hyperparams['kernel_size']
-            STRIDE = hyperparams['stride']
+            kernel_size = hyperparams['kernel_size']
+            kernel_size2 = hyperparams['kernel_size2']
+            stride2 = hyperparams['stride2']
+            stride = hyperparams['stride']
+            padding2 = hyperparams['padding2']
+            padding = hyperparams['padding']
+            channels = hyperparams['channels']
 
             model = EEGConvGRUEncoder(
                 hidden_size=hidden_size,
                 gru_hidden=hidden_size,
                 embedding_dim=projection_size,
                 num_layers_gru=num_layers_gru,
-                kernel_size=KERNEL_SIZE,
-                stride=STRIDE,
-                padding=STRIDE
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                kernel_size2=kernel_size2,
+                stride2=stride2,
+                padding2=padding2,
+                conv_channels=channels
             )
 
             path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch1000.pth")
@@ -63,13 +72,14 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
 
         # Self-attention across channels (not time!)
-        self.attention = nn.MultiheadAttention(embed_dim=152, num_heads=attention_heads, batch_first=True)
+        self.attention = nn.MultiheadAttention(embed_dim=198, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(152, 1024)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(1024, 1024)
-        self.fc3 = nn.Linear(1024, 512)
+        self.fc1 = nn.Linear(198, 512)
+        self.a = nn.GELU()
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 512)
+        self.d = nn.Dropout(0.05)
         self.output = nn.Linear(512, 1)  # Regression output
 
     def forward(self, x):
@@ -96,8 +106,9 @@ class AgeModel(nn.Module):
 
         # Flatten and pass through dense layers
         out = attn_output.reshape(batch_size, -1)  # [batch, 14 * hidden_size]
-        out = self.relu(self.fc1(out))
-        out = self.relu(self.fc2(out))
-        out = self.relu(self.fc3(out))
+        out = self.a(self.fc1(out))
+        out = self.a(self.fc2(out))
+        out = self.d(out)
+        out = self.a(self.fc3(out))
         out = self.output(out)
         return out.squeeze(1), attn_weights

@@ -26,7 +26,7 @@ def visualize_all_channels(model, eeg_batch, channel_names, sample_idx):
 
         conv_out = activations['conv'].squeeze(0)  # [filters, L']
         mean_act = F.relu(conv_out).mean(dim=0)
-        mean_act = (mean_act - mean_act.min()) / (mean_act.max() - mean_act.min() + 1e-8)
+        #mean_act = (mean_act - mean_act.min()) / (mean_act.max() - mean_act.min() + 1e-8)
         mean_act_up = F.interpolate(mean_act[None, None, :], size=x.shape[-1],
                                     mode='linear', align_corners=True).squeeze().numpy()
 
