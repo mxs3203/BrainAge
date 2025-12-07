@@ -1,6 +1,8 @@
 import os
 from glob import glob
 
+from PIL.features import features
+
 # Get all subfolders in "data/" (e.g., BA1, BA2, ...)
 SAMPLES = [os.path.basename(d) for d in glob("data/*") if os.path.isdir(d)]
 
@@ -13,6 +15,7 @@ rule all:
         expand("results/{sample}/2_consecutive_rows_report.csv", sample=SAMPLES),
         expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES),
         expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
+        expand("results/{sample}/4_EEG_features.csv", sample=SAMPLES),
         expand("results/{sample}/5_lstm_rdy_data.txt", sample=SAMPLES)
 
 
@@ -79,16 +82,18 @@ rule normalize_stimuli:
         python 3_normalize_stimuli.py {input.data} {output.data} > {log} 2>&1
         """
 
-rule perform_fft:
+rule perform_feature_extract:
     input:
-        data=rules.normalize_stimuli.output.data
+        non_normalized_data=rules.filter_samples.output.dict,
+        normalized_data=rules.normalize_stimuli.output.data
     output:
-        data="results/{sample}/4_fft_data.pck"
+        data="results/{sample}/4_fft_data.pck",
+        features="results/{sample}/4_EEG_features.csv"
     log:
         "logs/{sample}.log"
     shell:
         """
-        python 4_perform_fft.py {input.data} {output.data} > {log} 2>&1
+        python 4_perform_feature_extract.py {input.non_normalized_data} {input.normalized_data} {output.data} {output.features} > {log} 2>&1
         """
 
 

@@ -162,7 +162,7 @@ def train_channel(channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name in ['EEG.AF3', 'EEG.F7'] :
+        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

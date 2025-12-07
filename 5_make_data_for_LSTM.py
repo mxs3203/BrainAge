@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from utils.SignalFeatureExtractor import EEGFeatureExtractor
+
 with open("config.json", "r") as f:
     config = json.load(f)
 
@@ -20,12 +22,15 @@ STRIDE = config['stride']
 META_DATA_PATH = config["meta_data_path"]
 OUTPUT_DIR = "results/EEG_LSTM_windows"
 
+
 if DEBUG:
     data_file = "results/BA15/3_normalized_dictionary_of_stimuli.pck"
     output_file = "results/BA15/5_lstm_ready_flag.txt"
+    output_feature_file = "results/BA15/5_lstm_ready_flag.csv"
 else:
     data_file = sys.argv[1]
     output_file = sys.argv[2]
+    output_feature_file = sys.argv[3]
 
 meta_data_df = pd.read_excel(META_DATA_PATH, skiprows=1)
 
@@ -72,6 +77,7 @@ for stim_name, seg_list in data.items():
                 f.close()
 
             total_windows += 1
+total_df.to_csv(output_feature_file)
 
 # --- Write completion flag for Snakemake ---
 with open(output_file, "w") as f:

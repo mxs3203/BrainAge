@@ -72,10 +72,10 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
 
         # Self-attention across channels (not time!)
-        self.attention = nn.MultiheadAttention(embed_dim=198, num_heads=attention_heads, batch_first=True)
+        self.attention = nn.MultiheadAttention(embed_dim=196, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(198, 512)
+        self.fc1 = nn.Linear(196, 512)
         self.a = nn.GELU()
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 512)

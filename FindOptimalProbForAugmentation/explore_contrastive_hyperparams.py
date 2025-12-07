@@ -15,7 +15,6 @@ from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
-from DatasetClasses.EEGAugmentor import EEGAugmentor
 from utils.UnsupervisedContrastiveLoss import nt_xent_loss
 with open("../config.json", "r") as f:
     config = json.load(f)
@@ -41,7 +40,7 @@ def train_channel(trial,channel_idx, channel_name):
     dataset = EEGContrastivePairs(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
-        subset_fraction=1.0
+        subset_fraction=0.5
     )
 
     train_size = int(0.5 * len(dataset))
