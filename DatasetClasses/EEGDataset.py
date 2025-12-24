@@ -15,22 +15,7 @@ class EEGDataset(Dataset):
         self.root_dir = root_dir
         self.pkl_files = []
         self.pkl_files = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if f.endswith(".pkl")]
-
-        # bad = []
-        # for f in tqdm(os.listdir(root_dir)):
-        #     if not f.endswith(".pkl"):
-        #         continue
-        #     p = os.path.join(root_dir, f)
-        #     with open(p, "rb") as fh:
-        #         s = pickle.load(fh)
-        #     X = s["X"]
-        #     if np.isnan(X).any() or len(X) != 512:
-        #         bad.append((f, X.shape))
-        #     else:
-        #         self.pkl_files.append(os.path.join(root_dir, f))
-        #
-        # print("Bad files:", bad)
-        # print("Total bad:", len(bad))
+        self.original_size = self.pkl_files
         if not self.pkl_files:
             raise ValueError(f"No .pkl files found in {root_dir}")
 
@@ -47,14 +32,14 @@ class EEGDataset(Dataset):
             random.seed(seed)
             random.shuffle(self.pkl_files)
             self.pkl_files = self.pkl_files[:subset_size]
-            print(f"⚙️ Using subset of {subset_size}/{len(self.pkl_files)} windows from {root_dir}")
+            print(f"Using subset of {subset_size}/{len(self.pkl_files)} windows from {root_dir}")
         else:
             self.pkl_files = self.pkl_files
             print(f"Loaded full dataset with {len(self.pkl_files)} windows from {root_dir}")
 
         if preload:
             print("Preloading entire data into memory...")
-            self.data = [self._load_pickle(fp) for fp in self.pkl_files]
+            self.data = [self._load_pickle(fp) for fp in tqdm(self.pkl_files)]
         else:
             self.data = None
 
@@ -63,7 +48,7 @@ class EEGDataset(Dataset):
             return pickle.load(f)
 
     def __len__(self):
-        return len(self.pkl_files)
+        return len(self.original_size)
 
     def __getitem__(self, idx):
         sample = self.data[idx] if self.data else self._load_pickle(self.pkl_files[idx])

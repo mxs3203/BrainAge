@@ -11,8 +11,7 @@ from tqdm import tqdm
 import wandb
 from DatasetClasses.EEGDataset import EEGDataset
 from ModelDefs.AttAgeModel import AgeModel
-from Modeling_ContrastiveChannelWise.visualize_model import visualize_all_channels, \
-    visualize_integrated_gradients_all_channels
+from Modeling_ContrastiveChannelWise.visualize_model import visualize_all_channels, visualize_integrated_gradients_all_channels
 
 with open("../config.json", "r") as f:
     config = json.load(f)
@@ -32,7 +31,7 @@ def main():
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True,  pin_memory=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE)
 
     model = AgeModel(attention_heads=1, unlock_encoders=False)
@@ -60,7 +59,7 @@ def main():
         for i, (x, y) in enumerate(train_loader):
             x,y = x.to(device), y.to(device)
             optimizer.zero_grad()
-            y_pred,att = model(x)
+            y_pred,att, seg_lens = model(x)
             loss = criteria(y,y_pred )
             loss.backward()
             optimizer.step()
@@ -73,7 +72,7 @@ def main():
         with torch.no_grad():
             for i, (x, y) in enumerate(val_loader):
                 x,y = x.to(device), y.to(device)
-                y_pred,att = model(x)
+                y_pred,att,seg_lens = model(x)
                 loss = criteria(y, y_pred)
                 total_val_loss += loss.item()
         total_val_loss /= len(val_loader)
@@ -95,4 +94,5 @@ def main():
     wandb.finish()
 
 if __name__ == "__main__":
+    torch.multiprocessing.set_start_method('fork', force=True)
     main()

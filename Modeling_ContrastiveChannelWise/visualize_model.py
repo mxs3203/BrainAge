@@ -67,7 +67,7 @@ def visualize_integrated_gradients_all_channels(model, eeg_batch, channel_names,
                 # x: [B, L]
                 full_x = torch.zeros(x.size(0), x.size(1), len(channel_names), device=x.device)
                 full_x[:, :, self.channel_idx] = x
-                out, _ = self.model(full_x)
+                out, _, _ = self.model(full_x)
                 return out
 
         wrapped = ModelWrapper(base_model, channel_idx=i).to(device)

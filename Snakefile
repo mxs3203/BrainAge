@@ -83,6 +83,7 @@ rule normalize_stimuli:
         """
 
 rule perform_feature_extract:
+    threads: 8
     input:
         non_normalized_data=rules.filter_samples.output.dict,
         normalized_data=rules.normalize_stimuli.output.data

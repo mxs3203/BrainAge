@@ -11,12 +11,13 @@ class AgeModel(nn.Module):
     def __init__(self, attention_heads=1,
                  pretrained_dir="ContrastiveModel_chkpoints",
                  hyperparam_config="../FindOptimalProbForAugmentation/contrastive_hyperparams.json",
-                 unlock_encoders=True):
+                 unlock_encoders=True,
+                 config_file='../config.json'):
         super(AgeModel, self).__init__()
 
         with open(hyperparam_config, "r") as f:
             hyperparam_config_dict = json.load(f)
-        with open("../config.json", "r") as f:
+        with open(config_file, "r") as f:
             config = json.load(f)
 
         self.eeg_columns = config['EEG_columns']
@@ -72,7 +73,7 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
 
         # Self-attention across channels (not time!)
-        self.attention = nn.MultiheadAttention(embed_dim=196, num_heads=attention_heads, batch_first=True)
+        self.attention = nn.MultiheadAttention(embed_dim=1, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
         self.fc1 = nn.Linear(196, 512)
@@ -90,25 +91,25 @@ class AgeModel(nn.Module):
         # Apply each pretrained encoder to its respective channel
         for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
-            f = self.encoders[i](channel_input)  # use raw output
+            f = self.encoders[i](channel_input)
+            f = f.unsqueeze(-1)
             features.append(f)
             segment_lengths.append(f.shape[1])
 
-        # Stack features: [batch, 14, hidden_size]
+        # Stack features
         channel_features = torch.cat(features, dim=1)
 
         # Apply self-attention across channels
         attn_output, attn_weights = self.attention(
             channel_features, channel_features, channel_features,
-            need_weights=True, average_attn_weights=False
+            need_weights=True, average_attn_weights=True
         )
-        attn_weights = attn_weights.mean(dim=1)
 
         # Flatten and pass through dense layers
-        out = attn_output.reshape(batch_size, -1)  # [batch, 14 * hidden_size]
+        out = attn_output.reshape(batch_size, -1)
         out = self.a(self.fc1(out))
         out = self.a(self.fc2(out))
         out = self.d(out)
         out = self.a(self.fc3(out))
         out = self.output(out)
-        return out.squeeze(1), attn_weights
+        return out.squeeze(1), attn_weights,segment_lengths
