@@ -2,11 +2,8 @@ import json
 import os
 import pickle
 import sys
-import seaborn as sns
-import numpy as np
 import pandas as pd
 import tqdm
-from matplotlib import pyplot as plt
 
 from utils.SignalFeatureExtractor import EEGFeatureExtractor
 from utils.fft import compute_fft_bands

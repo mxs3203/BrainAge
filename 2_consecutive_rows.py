@@ -2,9 +2,6 @@ import json
 import os
 import pickle
 import sys
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
 import pandas as pd
 
 from utils.row_extract import extract_quality_segments

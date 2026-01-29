@@ -5,6 +5,7 @@ import numpy as np
 import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
+from sympy import true
 from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
@@ -31,10 +32,10 @@ def main():
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True,  pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=10, drop_last=True)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE)
 
-    model = AgeModel(attention_heads=1, unlock_encoders=False)
+    model = AgeModel(attention_heads=1, unlock_encoders=True)
 
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -55,8 +56,9 @@ def main():
     for epoch in tqdm(range(1, num_epochs + 1)):
         model.train()
         total_train_loss = 0
+        dataset.refresh_subset()
 
-        for i, (x, y) in enumerate(train_loader):
+        for i, (x, y) in tqdm(enumerate(train_loader)):
             x,y = x.to(device), y.to(device)
             optimizer.zero_grad()
             y_pred,att, seg_lens = model(x)
