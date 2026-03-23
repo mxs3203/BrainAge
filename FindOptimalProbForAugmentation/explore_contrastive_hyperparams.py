@@ -31,8 +31,8 @@ results = pd.DataFrame(columns=[
 def train_channel(trial,channel_idx, channel_name):
     LR = 1e-3
 
-    num_epochs = 50
-    TEMP = trial.suggest_float("temp", 0.05, 0.5)
+    num_epochs = 80
+    TEMP = trial.suggest_float("temp", 0.05, 0.2)
     BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256)
 
     model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
@@ -96,22 +96,22 @@ def train_channel(trial,channel_idx, channel_name):
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
 
-    wandb.init(
-        project="BrainAge",
-        entity="mxs3203",
-        config={
-            "model": "Contrastive_SingleChannel{}".format(channel_name),
-            "Channel": channel_name,
-            "epochs": num_epochs,
-            "batch_size": BATCH_SIZE,
-            "learning_rate": LR,
-            "hidden_size": hidden_size,
-            "input_size": 1 if channel_idx != "all" else len(channel_order),
-            "temperature": TEMP,
-            "projection_size": projection_size,
-            "modelType": model_type
-        }
-    )
+    # wandb.init(
+    #     project="BrainAge",
+    #     entity="mxs3203",
+    #     config={
+    #         "model": "Contrastive_SingleChannel{}".format(channel_name),
+    #         "Channel": channel_name,
+    #         "epochs": num_epochs,
+    #         "batch_size": BATCH_SIZE,
+    #         "learning_rate": LR,
+    #         "hidden_size": hidden_size,
+    #         "input_size": 1 if channel_idx != "all" else len(channel_order),
+    #         "temperature": TEMP,
+    #         "projection_size": projection_size,
+    #         "modelType": model_type
+    #     }
+    # )
 
     # Training loop
     for epoch in tqdm(range(1, num_epochs + 1)):
@@ -159,15 +159,15 @@ def train_channel(trial,channel_idx, channel_name):
         raise optuna.TrialPruned()
     print(
         f"Val Loss: {total_val_loss:.4f} Mean align: {mean_align} Mean Uniformity: {mean_unif} Total score: {score}")
-    wandb.log({
-        "Val/Loss": total_val_loss ,
-        "Val/Align" : mean_align,
-        "Val/Unif": mean_unif,
-        "Val/ZStd": mean_std,
-        "Val/DeadFrac": dead_frac,
-        "Val/Score": score
-    })
-    wandb.finish()
+    # wandb.log({
+    #     "Val/Loss": total_val_loss ,
+    #     "Val/Align" : mean_align,
+    #     "Val/Unif": mean_unif,
+    #     "Val/ZStd": mean_std,
+    #     "Val/DeadFrac": dead_frac,
+    #     "Val/Score": score
+    # })
+   # wandb.finish()
 
     trial_results = {
         "Channel": channel_name,

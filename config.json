@@ -1,11 +1,11 @@
 {
     "DEBUG": 0,
     "meta_data_path": "data/PilotDatasetSubjects.xlsx",
-    "normalization": "z-score",
+    "normalization": "basic",
     "filter_pass_threshold": {"mean": 50, "std":  100},
     "filter_for_extract_emotiv_fft": 2,
     "overal_q_thrs": 50,
-    "channel_q_thrs": 1,
+    "channel_q_thrs": 2,
     "window_size": 512,
     "stride": 1,
     "fft_bands": {
@@ -54,7 +54,7 @@
         {"input": "valdo1", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "valdo2", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "valdo3", "normalizeWith": ["eyesopen", "occipital4"]},
-        {"input": "occipital4", "normalizeWith": ["eyesopen", "occipital4"]},
+        {"input": "occipital4", "normalizeWith": ["eyesopen"]},
         {"input": "gyrus_left_open", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "gyrus_right_open", "normalizeWith": ["eyesopen", "occipital4"]},
         {"input": "gyrus_left_closed_eyes", "normalizeWith": ["eyesclose"]},
@@ -99,7 +99,7 @@
         "CQ.P7",  "CQ.O1", "CQ.O2", "CQ.P8",  "CQ.T8",
         "CQ.FC6", "CQ.F4", "CQ.F8", "CQ.AF4"
     ],
-    "number_of_rows_discarded": 50,
+    "number_of_rows_discarded": 100,
     "Quality": "CQ.Overall",
     "motion_columns":[
         "MOT.CounterMems", "MOT.InterpolatedMems", "MOT.Q0", "MOT.Q1", "MOT.Q2", "MOT.Q3",

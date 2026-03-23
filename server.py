@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import torch
 import numpy as np
+import pandas as pd
 from ModelDefs.AttAgeModel import AgeModel
 
 app = FastAPI()
@@ -13,7 +14,8 @@ model = AgeModel(pretrained_dir="Modeling_ContrastiveChannelWise/ContrastiveMode
                  hyperparam_config="FindOptimalProbForAugmentation/contrastive_hyperparams.json",
                  unlock_encoders=True,
                  config_file='config.json')
-#model.load_state_dict(torch.load("Modeling_ContrastiveChannelWise/ContrastiveModel_chkpoints/FullModel_Epoch670.pth", map_location="cuda:0"))
+model.load_state_dict(torch.load("Modeling_ContrastiveChannelWise/ContrastiveModel_chkpoints/FullModel_Epoch22.pth", map_location="cuda:0"))
+model.to("cuda:0")
 model.eval()
 
 class EEGInput(BaseModel):
@@ -21,14 +23,14 @@ class EEGInput(BaseModel):
 
 @app.post("/predict")
 def predict_age(input_data: EEGInput):
-    import pandas as pd
 
     arr = np.array(input_data.data).reshape(1, 512, 14)
-    x = torch.tensor(arr, dtype=torch.float32)
+    x = torch.tensor(arr, dtype=torch.float32, device="cuda:0")
 
     with torch.no_grad():
         pred, attn_weights, segment_lengths = model(x)
-    print(pred, attn_weights, segment_lengths)
+    print("On server: ")
+    #print(pred, attn_weights, segment_lengths)
     # Build feature labels and channel mapping
     feature_labels = []
     segment_to_channel = []
@@ -37,14 +39,19 @@ def predict_age(input_data: EEGInput):
         segment_to_channel.extend([ch_idx] * seg_count)
 
     # Convert attention matrix to DataFrame with channel-level indices
-    segment_to_channel = pd.Series(segment_to_channel, dtype=int)
+    attn_np = attn_weights.squeeze(0).detach().cpu().numpy()  # shape: [S, S]
 
-    attn_np = attn_weights.cpu().numpy()
-    attn_df = pd.DataFrame(attn_np, columns=segment_to_channel, index=segment_to_channel)
+    segment_to_channel = np.array(segment_to_channel)  # shape: [S]
+    n_channels = len(model.eeg_columns)
 
-    channel_mean = attn_df.groupby(level=0).apply(lambda df: df.groupby(level=1, axis=1).mean())
-    channel_attn = channel_mean.values
+    channel_attn = np.zeros((n_channels, n_channels), dtype=np.float32)
 
+    for i in range(n_channels):
+        row_mask = segment_to_channel == i
+        for j in range(n_channels):
+            col_mask = segment_to_channel == j
+            block = attn_np[np.ix_(row_mask, col_mask)]
+            channel_attn[i, j] = block.mean() if block.size > 0 else 0.0
     return {
         "predicted_age": float(pred.item()),
         "feature_attention": attn_np.tolist(),         # [segments, segments]

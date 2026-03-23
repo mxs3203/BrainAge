@@ -64,7 +64,8 @@ class AgeModel(nn.Module):
                     state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
                 model.load_state_dict(state_dict)
             else:
-                raise FileNotFoundError(f"Missing pretrained model at {path}")
+                print()
+                #raise FileNotFoundError(f"Missing pretrained model at {path}")
 
             # Freeze all parameters
             for param in model.parameters():
@@ -76,11 +77,11 @@ class AgeModel(nn.Module):
         self.attention = nn.MultiheadAttention(embed_dim=1, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(196, 512)
+        self.fc1 = nn.Linear(196, 256)
         self.a = nn.GELU()
-        self.fc2 = nn.Linear(512, 512)
+        self.fc2 = nn.Linear(256, 512)
         self.fc3 = nn.Linear(512, 512)
-        self.d = nn.Dropout(0.05)
+        self.d = nn.Dropout(0.35)
         self.output = nn.Linear(512, 1)  # Regression output
 
     def forward(self, x):

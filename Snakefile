@@ -14,8 +14,8 @@ rule all:
         expand("results/{sample}/2_non_normalized_dictionary_of_stimuli.pck", sample=SAMPLES),
         expand("results/{sample}/2_consecutive_rows_report.csv", sample=SAMPLES),
         expand("results/{sample}/3_normalized_dictionary_of_stimuli.pck",sample=SAMPLES),
-        expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
-        expand("results/{sample}/4_EEG_features.csv", sample=SAMPLES),
+        #expand("results/{sample}/4_fft_data.pck", sample=SAMPLES),
+        #expand("results/{sample}/4_EEG_features.csv", sample=SAMPLES),
         expand("results/{sample}/5_lstm_rdy_data.txt", sample=SAMPLES)
 
 

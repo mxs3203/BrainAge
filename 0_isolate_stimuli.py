@@ -40,6 +40,8 @@ else:
 
 if ID in what_to_remove.keys():
     remove = what_to_remove[ID]
+    if len(remove) == 0:
+        exit("Removing {} because of what_to_remove.json...".format(ID))
 else:
     remove = []
     print("Nothing to remove...")

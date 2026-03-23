@@ -88,7 +88,10 @@ class EEGDataset(Dataset):
         # --- Target ---
         y = None
         if self.target and self.target in sample:
+            #min_age = 19
+            #max_age = 63
             val = sample[self.target]
+            #val = (val - min_age) / (max_age - min_age)
             if isinstance(val, (int, float)):
                 y = torch.tensor(val, dtype=torch.float32)
             elif isinstance(val, str):
