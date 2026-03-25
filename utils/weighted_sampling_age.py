@@ -51,7 +51,8 @@ def split_index_by_participant(index_df, test_size=0.2, random_state=None):
         })
     )
 
-    #unique_ids = unique_ids[:40]
+    participant_df.sample(n=50, random_state=random_state)
+
     train_ids, val_ids = train_test_split(
         participant_df['ID'],
         test_size=test_size,
@@ -68,16 +69,16 @@ def age_to_bin(age):
     if pd.isna(age):
         return None
     age = int(age)
-    if age <= 28:
-        return "16_28"
-    elif age <= 45:
-        return "28_45"
-    elif age <= 80:
-        return "45_80"
-    # elif age <= 54:
-    #     return "45_54"
-    # else:
-        return "55_63"
+    if age <= 24:
+        return "15_24"
+    elif age <= 34:
+        return "25_34"
+    elif age <= 44:
+        return "35_44"
+    elif age <= 54:
+        return "45_54"
+    else:
+        return "55_64"
 
 def compute_sample_weights(train_df):
     id_counts = Counter(train_df["ID"])

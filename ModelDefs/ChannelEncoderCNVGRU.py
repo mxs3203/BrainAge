@@ -15,11 +15,11 @@ class EEGConvGRUEncoder(nn.Module):
             nn.BatchNorm1d(conv_channels),
             nn.GELU(),
 
-            nn.Conv1d(conv_channels, hidden_size, kernel_size=kernel_size2, stride=stride2, padding=padding2),     # [B, H, L/8]
-            nn.BatchNorm1d(hidden_size),
-            nn.GELU(),
+            # nn.Conv1d(conv_channels, hidden_size, kernel_size=kernel_size2, stride=stride2, padding=padding2),     # [B, H, L/8]
+            # nn.BatchNorm1d(hidden_size),
+            # nn.GELU(),
         )
-
+        hidden_size = conv_channels
         # --- GRU over time (sequence dimension after conv) ---
         self.gru = nn.GRU(
             input_size=hidden_size,

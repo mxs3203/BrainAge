@@ -41,7 +41,7 @@ def train_channel(channel_idx, channel_name):
     hidden_size = hyperparams['hidden_size']
     num_layers_gru = hyperparams['num_layers_gru']
     projection_size = hyperparams['projection_size']
-    num_epochs = 1000
+    num_epochs = 2000
     TEMP = hyperparams['temp']
     BATCH_SIZE = 256#hyperparams['batch_size']
 
@@ -135,9 +135,14 @@ def train_channel(channel_idx, channel_name):
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
             Z = torch.cat([z1, z2], dim=0)
-            fig = visualize_umap(Z, title=f"UMAP_{channel_name}_{epoch}")
-            wandb.log({"UMAP": wandb.Image(fig)})
-            plt.close(fig)
+            if epoch >= 500 and epoch % 200 == 0:
+                age = torch.cat([
+                    torch.as_tensor(meta["Age1"], dtype=torch.float32),
+                    torch.as_tensor(meta["Age2"], dtype=torch.float32)
+                ], dim=0)
+                fig = visualize_umap(Z, age, title=f"UMAP_{channel_name}_{epoch}")
+                wandb.log({"UMAP": wandb.Image(fig)})
+                plt.close(fig)
             mean_std, dead_frac = collapse_score(Z)
             mean_std, dead_frac = mean_std.item(), dead_frac.item()
         total_val_loss /= len(val_loader)
@@ -155,14 +160,14 @@ def train_channel(channel_idx, channel_name):
             "Val/DeadFrac": dead_frac,
             "Val/Score": score
         })
-        if epoch >= 900 and epoch % 50 == 0:
+        if epoch >= 900 and epoch % 100 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
+        if ch_name not in ['EEG.AF3'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

@@ -51,7 +51,7 @@ class AgeModel(nn.Module):
                 conv_channels=channels
             )
 
-            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch1000.pth")
+            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch2000.pth")
             print(path)
             if os.path.exists(path):
                 print(f"Loading pretrained ChannelEncoder for channel {channel_name} from {path}")
@@ -74,31 +74,28 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
 
         # Self-attention across channels (not time!)
-        self.attention = nn.MultiheadAttention(embed_dim=1, num_heads=attention_heads, batch_first=True)
+        self.attention = nn.MultiheadAttention(embed_dim=16, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(196, 256)
+        self.fc1 = nn.Linear(224, 32)
         self.a = nn.GELU()
-        self.fc2 = nn.Linear(256, 512)
-        self.fc3 = nn.Linear(512, 512)
-        self.d = nn.Dropout(0.35)
-        self.output = nn.Linear(512, 1)  # Regression output
+        self.fc2 = nn.Linear(32, 32)
+        self.fc3 = nn.Linear(224, 32)
+        self.d = nn.Dropout(0.25)
+        self.output = nn.Linear(32, 1)  # Regression output
 
     def forward(self, x):
         # x: [batch, seq_len, 14]
         batch_size = x.size(0)
         features = []
-        segment_lengths = []
         # Apply each pretrained encoder to its respective channel
         for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
             f = self.encoders[i](channel_input)
-            f = f.unsqueeze(-1)
             features.append(f)
-            segment_lengths.append(f.shape[1])
 
         # Stack features
-        channel_features = torch.cat(features, dim=1)
+        channel_features = torch.stack(features, dim=1)
 
         # Apply self-attention across channels
         attn_output, attn_weights = self.attention(
@@ -107,10 +104,10 @@ class AgeModel(nn.Module):
         )
 
         # Flatten and pass through dense layers
-        out = attn_output.reshape(batch_size, -1)
-        out = self.a(self.fc1(out))
-        out = self.a(self.fc2(out))
-        out = self.d(out)
+        out = attn_output.reshape(attn_output.size(0), -1)
+        #out = self.a(self.fc1(out))
+        #out = self.a(self.fc2(out))
+        #out = self.d(out)
         out = self.a(self.fc3(out))
         out = self.output(out)
-        return out.squeeze(1), attn_weights,segment_lengths
+        return out.squeeze(1), attn_weights

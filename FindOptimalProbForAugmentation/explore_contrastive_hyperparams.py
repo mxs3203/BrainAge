@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
 
+from DatasetClasses.DataDrivenContrastiveDatasets_v2 import EEGContrastivePairsSameStimDifferentID
 from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
@@ -31,63 +32,50 @@ results = pd.DataFrame(columns=[
 def train_channel(trial,channel_idx, channel_name):
     LR = 1e-3
 
-    num_epochs = 80
-    TEMP = trial.suggest_float("temp", 0.05, 0.2)
-    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256)
+    num_epochs = 100
+    TEMP = trial.suggest_float("temp", 0.05, 0.8)
+    BATCH_SIZE = trial.suggest_int("batch_size", 256, 1024)
 
     model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
 
     dataset = EEGContrastivePairs(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
-        subset_fraction=0.5
+        subset_fraction=1.0
     )
 
     train_size = int(0.5 * len(dataset))
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if model_type == 'LSTM':
-        hidden_size = trial.suggest_int("hidden_size", 8, 64)
-        num_lstm_layers = trial.suggest_int("lstm_layers", 1, 3)
-        projection_size = trial.suggest_int("projection_size", 8, 16)
-        dropout = trial.suggest_float("dropout", 0, 0.3)
 
-        model = ChannelEncoder(
-            input_size=1,
-            lstm_hidden_size=hidden_size,
-            lstm_layers=num_lstm_layers,
-            proj_dim=projection_size,
-            dropout=dropout
-        )
-    else:
-        hidden_size = trial.suggest_int("hidden_size", 8, 64)
-        num_layers_gru = trial.suggest_int("num_layers_gru", 1, 3)
-        projection_size = trial.suggest_int("projection_size", 8, 16)
-        kernel_size = trial.suggest_int("kernel_size", 2, 9)
-        stride = trial.suggest_int("stride", 1, 2)
-        padding = trial.suggest_int("padding", 1, 4)
-        kernel_size2 = trial.suggest_int("kernel_size2", 2, 9)
-        stride2 = trial.suggest_int("stride2", 1, 2)
-        padding2 = trial.suggest_int("padding2", 1, 4)
-        channels = trial.suggest_int("Conv1DChannels", 8, 128)
-        model = EEGConvGRUEncoder(
-            hidden_size=hidden_size,
-            gru_hidden=hidden_size,
-            embedding_dim=projection_size,
-            num_layers_gru=num_layers_gru,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            kernel_size2=kernel_size2,
-            stride2=stride2,
-            padding2=padding2,
-            conv_channels=channels
-        )
+    hidden_size = trial.suggest_int("hidden_size", 8, 128)
+    num_layers_gru = trial.suggest_int("num_layers_gru", 1, 7)
+    projection_size = trial.suggest_int("projection_size",  5, 20)
+    kernel_size = trial.suggest_int("kernel_size", 2, 9)
+    stride = trial.suggest_int("stride", 1, 2)
+    padding = trial.suggest_int("padding", 1, 4)
+    # kernel_size2 = trial.suggest_int("kernel_size2", 2, 9)
+    # stride2 = trial.suggest_int("stride2", 1, 2)
+    # padding2 = trial.suggest_int("padding2", 1, 4)
+    channels = trial.suggest_int("Conv1DChannels", 8, 128)
+    model = EEGConvGRUEncoder(
+        hidden_size=hidden_size,
+        gru_hidden=hidden_size,
+        embedding_dim=projection_size,
+        num_layers_gru=num_layers_gru,
+        kernel_size=kernel_size,
+        stride=stride,
+        padding=padding,
+        # kernel_size2=kernel_size2,
+        # stride2=stride2,
+        # padding2=padding2,
+        conv_channels=channels
+    )
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
         model = nn.DataParallel(model, device_ids=[0,1])
@@ -152,8 +140,15 @@ def train_channel(trial,channel_idx, channel_name):
     total_val_loss /= len(val_loader)
     mean_align = sum(alignments) / len(alignments)
     mean_unif = sum(uniformities) / len(uniformities)
+    target_align = 0.3
+    target_unif = -2.0
 
-    score = total_val_loss + 0.1 * mean_align + 0.1 * abs(mean_unif)
+    score = (
+            total_val_loss
+            + 0.5 * abs(mean_align - target_align)
+            + 0.5 * abs(mean_unif - target_unif)
+    )
+    #score = total_val_loss + 0.1 * mean_align + 0.1 * mean_unif
     trial.report(score, 0)
     if trial.should_prune():
         raise optuna.TrialPruned()
@@ -167,7 +162,7 @@ def train_channel(trial,channel_idx, channel_name):
     #     "Val/DeadFrac": dead_frac,
     #     "Val/Score": score
     # })
-   # wandb.finish()
+    # wandb.finish()
 
     trial_results = {
         "Channel": channel_name,
@@ -178,9 +173,9 @@ def train_channel(trial,channel_idx, channel_name):
         "KernelSize": kernel_size,
         "Padding": padding,
         "Stride": stride,
-        "KernelSize2": kernel_size2,
-        "Padding2": padding2,
-        "Stride2": stride2,
+        # "KernelSize2": kernel_size2,
+        # "Padding2": padding2,
+        # "Stride2": stride2,
         "Train_Loss": total_train_loss,
         "Val_Loss": total_val_loss,
         "Alignment": mean_align,
@@ -206,9 +201,9 @@ def main():
                 storage="sqlite:///db.sqlite3",
                 direction="minimize",
                 load_if_exists=True,
-                sampler=optuna.samplers.TPESampler(seed=27)
+                sampler=optuna.samplers.TPESampler()
             )
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=100, n_jobs=1)
+            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=200, n_jobs=1)
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)

@@ -5,21 +5,26 @@ import numpy as np
 import umap
 
 
-def visualize_umap(Z, title="UMAP of validation embeddings", n_points=5000):
+def visualize_umap(Z, age, title, n_points=5000):
     Z = Z.detach().cpu().numpy()
+    age = age.detach().cpu().numpy()
     if Z.shape[0] > n_points:
         idx = np.random.choice(Z.shape[0], n_points, replace=False)
         Z = Z[idx]
+        age = age[idx]
 
     reducer = umap.UMAP(n_neighbors=30, min_dist=0.1, metric="cosine", random_state=42)
     Z_2d = reducer.fit_transform(Z)
 
     fig, ax = plt.subplots(figsize=(6, 6))
-    scatter = ax.scatter(Z_2d[:, 0], Z_2d[:, 1], s=5, alpha=0.6)
+    scatter = ax.scatter(Z_2d[:, 0], Z_2d[:, 1], s=15, alpha=0.8, c=age,cmap="bwr")
     ax.set_title(title)
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label("Age")
     ax.set_xlabel("UMAP-1")
     ax.set_ylabel("UMAP-2")
     plt.tight_layout()
+    plt.savefig("{}.pdf".format(title))
     return fig
 
 def plot_attention_heatmaps(epoch, attn_weights, output_var, channel_names=[

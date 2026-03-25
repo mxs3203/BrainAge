@@ -68,7 +68,7 @@ val_loader = DataLoader(
     persistent_workers=True
 )
 
-model = AgeModel(attention_heads=1, unlock_encoders=True)
+model = AgeModel(attention_heads=2, unlock_encoders=True)
 
 if torch.cuda.device_count() > 1:
     print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -95,7 +95,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     for i, (x, y) in enumerate(train_loader):
         x,y = x.to(device), y.to(device)
         optimizer.zero_grad()
-        y_pred,att, seg_lens = model(x)
+        y_pred,att = model(x)
         loss = criteria(y,y_pred )
         loss.backward()
         optimizer.step()
@@ -108,7 +108,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     with torch.no_grad():
         for i, (x, y) in enumerate(val_loader):
             x,y = x.to(device), y.to(device)
-            y_pred,att,seg_lens = model(x)
+            y_pred,att = model(x)
             loss = criteria(y, y_pred)
             total_val_loss += loss.item()
     total_val_loss /= len(val_loader)

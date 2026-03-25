@@ -54,6 +54,23 @@ class EEGContrastivePairs(Dataset):
         # Length = number of groups; each __getitem__ draws a fresh pair from that group
         return len(self.groups)
 
+    def augment(self, x):
+        # x: [T]
+
+        # 1. Gaussian noise (most important)
+        noise_std = 0.01 * x.std()  # scale relative to signal
+        x = x + torch.randn_like(x) * noise_std
+
+        # 2. amplitude scaling (very useful)
+        scale = 1.0 + self.rng.uniform(-0.1, 0.1)
+        x = x * scale
+
+        # 3. small temporal jitter (shift)
+        shift = self.rng.randint(-5, 5)
+        if shift != 0:
+            x = torch.roll(x, shifts=shift, dims=0)
+
+        return x
     def __getitem__(self, idx):
         (ID, stim), files = self.groups[idx]
         f1, f2 = self.rng.sample(files, 2)
@@ -67,6 +84,8 @@ class EEGContrastivePairs(Dataset):
         x1 = torch.as_tensor(s1["X"][:, self.channel_idx], dtype=torch.float32)
         x2 = torch.as_tensor(s2["X"][:, self.channel_idx], dtype=torch.float32)
 
+        x1 = self.augment(x1)
+        x2 = self.augment(x2)
         # meta kept lightweight & collate-friendly
         meta = {"ID": ID, "stimulus": stim,
                 "Age1": float(s1.get("Age", float("nan"))),
