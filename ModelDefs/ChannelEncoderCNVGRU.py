@@ -5,8 +5,8 @@ import torch.nn.functional as F
 class EEGConvGRUEncoder(nn.Module):
     def __init__(self, input_channels=1, hidden_size=128,
                  num_layers_gru=1,gru_hidden=128, embedding_dim=64,
-                 kernel_size=7, stride=2, padding=1, conv_channels=32,
-                 kernel_size2=7, stride2=2, padding2=1):
+                 kernel_size=7, stride=2, padding=1, conv_channels=32
+                 ):
         super().__init__()
 
         # --- Convolutional feature extractor ---

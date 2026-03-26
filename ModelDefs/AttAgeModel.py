@@ -30,10 +30,10 @@ class AgeModel(nn.Module):
             num_layers_gru = hyperparams['num_layers_gru']
             projection_size = hyperparams['projection_size']
             kernel_size = hyperparams['kernel_size']
-            kernel_size2 = hyperparams['kernel_size2']
-            stride2 = hyperparams['stride2']
+            #kernel_size2 = hyperparams['kernel_size2']
+            #stride2 = hyperparams['stride2']
             stride = hyperparams['stride']
-            padding2 = hyperparams['padding2']
+            #padding2 = hyperparams['padding2']
             padding = hyperparams['padding']
             channels = hyperparams['channels']
 
@@ -45,9 +45,6 @@ class AgeModel(nn.Module):
                 kernel_size=kernel_size,
                 stride=stride,
                 padding=padding,
-                kernel_size2=kernel_size2,
-                stride2=stride2,
-                padding2=padding2,
                 conv_channels=channels
             )
 
@@ -77,9 +74,9 @@ class AgeModel(nn.Module):
         self.attention = nn.MultiheadAttention(embed_dim=16, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.fc1 = nn.Linear(224, 32)
+        #self.fc1 = nn.Linear(224, 32)
         self.a = nn.GELU()
-        self.fc2 = nn.Linear(32, 32)
+        #self.fc2 = nn.Linear(32, 32)
         self.fc3 = nn.Linear(224, 32)
         self.d = nn.Dropout(0.25)
         self.output = nn.Linear(32, 1)  # Regression output

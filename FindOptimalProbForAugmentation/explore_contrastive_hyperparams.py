@@ -33,8 +33,8 @@ def train_channel(trial,channel_idx, channel_name):
     LR = 1e-3
 
     num_epochs = 100
-    TEMP = trial.suggest_float("temp", 0.05, 0.8)
-    BATCH_SIZE = trial.suggest_int("batch_size", 256, 1024)
+    TEMP = trial.suggest_float("temp", 0.05, 0.2)
+    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256, 1024)
 
     model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
 
@@ -203,7 +203,7 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler()
             )
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=200, n_jobs=1)
+            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=100, n_jobs=1)
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)
