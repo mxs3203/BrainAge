@@ -5,26 +5,193 @@ import numpy as np
 import umap
 
 
-def visualize_umap(Z, age, title, n_points=5000):
-    Z = Z.detach().cpu().numpy()
-    age = age.detach().cpu().numpy()
+
+def visualize_umap_age_and_id_structure(
+    Z,
+    age,
+    ids,
+    epoch,
+    title_prefix,
+    n_points=2000,
+    max_ids_to_draw=20,
+    random_state=42
+):
+
+    # -----------------------------
+    # Convert inputs
+    # -----------------------------
+    if hasattr(Z, "detach"):
+        Z = Z.detach().cpu().numpy()
+    else:
+        Z = np.asarray(Z)
+
+    if hasattr(age, "detach"):
+        age = age.detach().cpu().numpy()
+    else:
+        age = np.asarray(age)
+
+    ids = np.asarray(ids)
+
+    # -----------------------------
+    # Optional subsampling
+    # -----------------------------
+    rng = np.random.default_rng(random_state)
     if Z.shape[0] > n_points:
-        idx = np.random.choice(Z.shape[0], n_points, replace=False)
+        idx = rng.choice(Z.shape[0], n_points, replace=False)
         Z = Z[idx]
         age = age[idx]
+        ids = ids[idx]
 
-    reducer = umap.UMAP(n_neighbors=30, min_dist=0.1, metric="cosine", random_state=42)
+    # -----------------------------
+    # UMAP
+    # -----------------------------
+    reducer = umap.UMAP(
+        n_neighbors=30,
+        min_dist=0.1,
+        metric="cosine",
+        random_state=random_state
+    )
     Z_2d = reducer.fit_transform(Z)
 
-    fig, ax = plt.subplots(figsize=(6, 6))
-    scatter = ax.scatter(Z_2d[:, 0], Z_2d[:, 1], s=15, alpha=0.8, c=age,cmap="bwr")
-    ax.set_title(title)
+    df_plot = pd.DataFrame({
+        "x": Z_2d[:, 0],
+        "y": Z_2d[:, 1],
+        "age": age,
+        "id": ids
+    })
+
+    # IDs with at least 2 points
+    id_counts = df_plot["id"].value_counts()
+    valid_ids = id_counts[id_counts >= 2].index.tolist()
+
+    # If too many IDs, draw only subset in panel B
+    if len(valid_ids) > max_ids_to_draw:
+        draw_ids = rng.choice(valid_ids, size=max_ids_to_draw, replace=False)
+    else:
+        draw_ids = valid_ids
+
+    # -----------------------------
+    # Figure
+    # -----------------------------
+    fig, axes = plt.subplots(1, 2, figsize=(13, 6), constrained_layout=True)
+
+    # =====================================================
+    # Panel A: Age-colored UMAP
+    # =====================================================
+    ax = axes[0]
+
+    scatter = ax.scatter(
+        df_plot["x"],
+        df_plot["y"],
+        c=df_plot["age"],
+        cmap="bwr",
+        s=18,
+        alpha=0.85,
+        edgecolors="none"
+    )
+
     cbar = plt.colorbar(scatter, ax=ax)
     cbar.set_label("Age")
+
+    ax.set_title("A. UMAP colored by age", loc="left", fontweight="bold")
     ax.set_xlabel("UMAP-1")
     ax.set_ylabel("UMAP-2")
-    plt.tight_layout()
-    plt.savefig("{}.pdf".format(title))
+
+    # =====================================================
+    # Panel B: Same-ID spread
+    # =====================================================
+    ax = axes[1]
+
+    # Light background points
+    ax.scatter(
+        df_plot["x"],
+        df_plot["y"],
+        color="0.85",
+        s=12,
+        alpha=0.15,
+        edgecolors="none",
+        zorder=0
+    )
+
+    cmap = plt.get_cmap("tab20")
+    within_distances = []
+
+    for i, uid in enumerate(draw_ids):
+        sub = df_plot[df_plot["id"] == uid].copy()
+        if len(sub) < 2:
+            continue
+
+        cx = sub["x"].mean()
+        cy = sub["y"].mean()
+
+        color = cmap(i % 20)
+
+        # Lines from centroid to points
+        for _, row in sub.iterrows():
+            ax.plot(
+                [cx, row["x"]],
+                [cy, row["y"]],
+                color=color,
+                alpha=0.15,
+                linewidth=0.8,
+                zorder=1
+            )
+
+            d = np.sqrt((row["x"] - cx) ** 2 + (row["y"] - cy) ** 2)
+            within_distances.append(d)
+
+        # Points for this ID
+        ax.scatter(
+            sub["x"],
+            sub["y"],
+            s=20,
+            alpha=0.85,
+            color=color,
+            edgecolors="none",
+            zorder=2
+        )
+
+        # Centroid with same fill color + red border
+        ax.scatter(
+            [cx], [cy],
+            s=85,
+            color=color,
+            edgecolors="red",
+            linewidths=1.6,
+            zorder=4
+        )
+
+    ax.set_title("B. Same-ID spread in UMAP space", loc="left", fontweight="bold")
+    ax.set_xlabel("UMAP-1")
+    ax.set_ylabel("UMAP-2")
+
+    # Summary text
+    if len(within_distances) > 0:
+        mean_within = float(np.mean(within_distances))
+        median_within = float(np.median(within_distances))
+        ax.text(
+            0.02, 0.98,
+            f"Mean centroid distance: {mean_within:.2f}\n"
+            f"Median centroid distance: {median_within:.2f}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=9,
+            bbox=dict(
+                boxstyle="round",
+                facecolor="white",
+                edgecolor="black",
+                alpha=0.85
+            )
+        )
+
+    fig.suptitle(f"{title_prefix} | epoch={epoch}", fontsize=14, fontweight="bold")
+
+    plt.savefig(
+        f"../MainFigures/{title_prefix}_{epoch}_age_id_structure.pdf",
+        bbox_inches="tight"
+    )
+
     return fig
 
 def plot_attention_heatmaps(epoch, attn_weights, output_var, channel_names=[

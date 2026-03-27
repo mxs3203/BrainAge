@@ -13,21 +13,11 @@ from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
 from utils.UnsupervisedContrastiveLoss import nt_xent_loss
-from utils.Visualization import visualize_umap
+from utils.Visualization import visualize_umap_age_and_id_structure
 
 with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
-
-def collate_pairs(batch):
-    X1 = torch.stack([b[0] for b in batch], dim=0)  # [B, T, C]
-    X2 = torch.stack([b[1] for b in batch], dim=0)
-    meta = {
-        "ID": [b[2]["ID"] for b in batch],
-        "stimulus": [b[2]["stimulus"] for b in batch],
-        "Age": [b[2]["Age"] for b in batch],
-    }
-    return X1, X2, meta
 
 torch.backends.cudnn.benchmark = True
 
@@ -41,15 +31,12 @@ def train_channel(channel_idx, channel_name):
     hidden_size = hyperparams['hidden_size']
     num_layers_gru = hyperparams['num_layers_gru']
     projection_size = hyperparams['projection_size']
-    num_epochs = 2000
+    num_epochs = 1000
     TEMP = hyperparams['temp']
-    BATCH_SIZE = 256#hyperparams['batch_size']
+    BATCH_SIZE = 256
 
     kernel_size = hyperparams['kernel_size']
-    kernel_size2 = hyperparams['kernel_size2']
-    stride2 = hyperparams['stride2']
     stride = hyperparams['stride']
-    padding2 = hyperparams['padding2']
     padding = hyperparams['padding']
     channels = hyperparams['channels']
 
@@ -76,9 +63,6 @@ def train_channel(channel_idx, channel_name):
         kernel_size=kernel_size,
         stride=stride,
         padding=padding,
-        kernel_size2=kernel_size2,
-        stride2=stride2,
-        padding2=padding2,
         conv_channels=channels
     )
 
@@ -135,12 +119,19 @@ def train_channel(channel_idx, channel_name):
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
             Z = torch.cat([z1, z2], dim=0)
-            if epoch >= 500 and epoch % 200 == 0:
+            if epoch >= 0 and epoch % 50 == 0:
                 age = torch.cat([
                     torch.as_tensor(meta["Age1"], dtype=torch.float32),
                     torch.as_tensor(meta["Age2"], dtype=torch.float32)
                 ], dim=0)
-                fig = visualize_umap(Z, age, title=f"UMAP_{channel_name}_{epoch}")
+                ids = list(meta["ID1"]) + list(meta["ID2"]) if "ID1" in meta else list(meta["ID"]) + list(meta["ID"])
+                fig = visualize_umap_age_and_id_structure(
+                    Z=Z,
+                    age=age,
+                    ids=ids,
+                    epoch=epoch,
+                    title_prefix=f"UMAP_{channel_name}"
+                )
                 wandb.log({"UMAP": wandb.Image(fig)})
                 plt.close(fig)
             mean_std, dead_frac = collapse_score(Z)
@@ -149,7 +140,14 @@ def train_channel(channel_idx, channel_name):
         mean_align = sum(alignments) / len(alignments)
         mean_unif = sum(uniformities) / len(uniformities)
 
-        score = total_val_loss + 0.1 * mean_align + 0.1 * abs(mean_unif)
+        target_align = 0.3
+        target_unif = -2.0
+
+        score = (
+                total_val_loss
+                + 0.5 * abs(mean_align - target_align)
+                + 0.5 * abs(mean_unif - target_unif)
+        )
         wandb.log({
             "Epoch": epoch,
             "Train/Loss": total_train_loss,
@@ -160,14 +158,14 @@ def train_channel(channel_idx, channel_name):
             "Val/DeadFrac": dead_frac,
             "Val/Score": score
         })
-        if epoch >= 900 and epoch % 100 == 0:
+        if epoch >= 500 and epoch % 100 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ['EEG.AF3'] :
+        if ch_name in ['EEG.AF3'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

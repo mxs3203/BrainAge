@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader, random_split, WeightedRandomSampler
 from tqdm import tqdm
 import wandb
 from DatasetClasses.AgeWeightedDataset import EEGIndexedDataset
-from DatasetClasses.EEGDataset import EEGDataset
 from ModelDefs.AttAgeModel import AgeModel
 from Modeling_ContrastiveChannelWise.visualize_model import visualize_all_channels, visualize_integrated_gradients_all_channels
 from utils.weighted_sampling_age import compute_sample_weights, split_index_by_participant, age_to_bin, \
@@ -23,7 +22,7 @@ with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
 
-BATCH_SIZE = 512
+BATCH_SIZE = 256
 LR = 1e-5
 num_epochs = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -51,7 +51,7 @@ def split_index_by_participant(index_df, test_size=0.2, random_state=None):
         })
     )
 
-    participant_df.sample(n=50, random_state=random_state)
+    participant_df.sample(n=10, random_state=random_state)
 
     train_ids, val_ids = train_test_split(
         participant_df['ID'],
