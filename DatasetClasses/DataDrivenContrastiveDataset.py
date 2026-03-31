@@ -57,16 +57,16 @@ class EEGContrastivePairs(Dataset):
     def augment(self, x):
         x = x.clone()
 
-        noise_std = 0.5 * x.std()
+        noise_std = 0.01 * x.std()
         x = x + torch.randn_like(x) * noise_std
 
-        scale = self.rng.uniform(0.7, 1.3)
+        scale = 1.0 + self.rng.uniform(-0.2, 1.2)
         x = x * scale
 
-        shift = self.rng.randint(-50, 50)
+        shift = self.rng.randint(-10, 10)
         x = torch.roll(x, shifts=shift, dims=0)
 
-        drop_len = self.rng.randint(20, 60)
+        drop_len = self.rng.randint(0, 50)
         start = self.rng.randint(0, max(0, len(x) - drop_len))
         x[start:start + drop_len] = 0.0
 

@@ -6,15 +6,11 @@ import pandas as pd
 
 import torch
 from torch import nn, optim
-from torch.nn.functional import dropout
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-import wandb
 
-from DatasetClasses.DataDrivenContrastiveDatasets_v2 import EEGContrastivePairsSameStimDifferentID
 from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
-from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
 from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
 from utils.UnsupervisedContrastiveLoss import nt_xent_loss
 with open("../config.json", "r") as f:
@@ -22,7 +18,8 @@ with open("../config.json", "r") as f:
 channel_order = config["EEG_columns"]
 
 results = pd.DataFrame(columns=[
-    "Channel", "Trial", "HiddenSize", "ProjSize", "Temp",
+    "Channel", "Trial", "HiddenSize", "GRULayers", "ProjSize", "Temp", "ActivationFunction",
+    "RNN_dropout", "RNN_Type",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
     "Score", "ModelType", "KernelSize", "Padding", "Stride",
@@ -34,7 +31,7 @@ def train_channel(trial,channel_idx, channel_name):
 
     num_epochs = 100
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
-    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256, 1024)
+    BATCH_SIZE = 1024 #trial.suggest_int("batch_size", 256, 1024)
 
     model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
 
@@ -53,28 +50,27 @@ def train_channel(trial,channel_idx, channel_name):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    hidden_size = trial.suggest_int("hidden_size", 8, 128)
-    num_layers_gru = trial.suggest_int("num_layers_gru", 1, 7)
+    hidden_size = trial.suggest_int("hidden_size", 2, 20)
+    num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
+    rnn_dropout = trial.suggest_float("RNN_dropout", 0.05, 0.2)
     projection_size = trial.suggest_int("projection_size",  5, 20)
+    activation = trial.suggest_categorical("activation_function",['ReLU', 'GELU', 'SiLU'])
+    rnn_type = trial.suggest_categorical("rnn_type", ['LSTM', 'GRU'])
     kernel_size = trial.suggest_int("kernel_size", 2, 9)
     stride = trial.suggest_int("stride", 1, 2)
     padding = trial.suggest_int("padding", 1, 4)
-    # kernel_size2 = trial.suggest_int("kernel_size2", 2, 9)
-    # stride2 = trial.suggest_int("stride2", 1, 2)
-    # padding2 = trial.suggest_int("padding2", 1, 4)
-    channels = trial.suggest_int("Conv1DChannels", 8, 128)
+    channels = trial.suggest_int("Conv1DChannels", 2, 20)
     model = EEGConvGRUEncoder(
-        hidden_size=hidden_size,
         gru_hidden=hidden_size,
         embedding_dim=projection_size,
         num_layers_gru=num_layers_gru,
         kernel_size=kernel_size,
         stride=stride,
         padding=padding,
-        # kernel_size2=kernel_size2,
-        # stride2=stride2,
-        # padding2=padding2,
-        conv_channels=channels
+        activation=activation,
+        conv_channels=channels,
+        rnn_dropout=rnn_dropout,
+        rnn_type=rnn_type
     )
     if torch.cuda.device_count() > 1:
         print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -168,14 +164,15 @@ def train_channel(trial,channel_idx, channel_name):
         "Channel": channel_name,
         "Trial": trial.number,
         "HiddenSize": hidden_size,
+        "GRULayers": num_layers_gru,
         "ProjSize": projection_size,
         "Temp": TEMP,
+        "ActivationFunction": activation,
+        "RNN_dropout": rnn_dropout,
+        "RNN_Type": rnn_type,
         "KernelSize": kernel_size,
         "Padding": padding,
         "Stride": stride,
-        # "KernelSize2": kernel_size2,
-        # "Padding2": padding2,
-        # "Stride2": stride2,
         "Train_Loss": total_train_loss,
         "Val_Loss": total_val_loss,
         "Alignment": mean_align,

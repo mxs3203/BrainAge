@@ -3,17 +3,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class EEGConvGRUEncoder(nn.Module):
-    def __init__(self, input_channels=1, hidden_size=128,
-                 num_layers_gru=1,gru_hidden=128, embedding_dim=64,
-                 kernel_size=7, stride=2, padding=1, conv_channels=32
+    def __init__(self, input_channels=1,
+                 num_layers_gru=1,gru_hidden=12, embedding_dim=64,
+                 kernel_size=7, stride=2, padding=1, conv_channels=32,
+                 activation="ReLU", rnn_dropout=0.0, rnn_type="GRU",
                  ):
         super().__init__()
+        if activation == "ReLU":
+            self.activation = nn.ReLU()
+        elif activation == "SiLU":
+            self.activation = nn.SiLU()
+        elif activation == "GELU":
+            self.activation = nn.GELU()
 
+        self.rnn_dropout = rnn_dropout
         # --- Convolutional feature extractor ---
         self.conv = nn.Sequential(
             nn.Conv1d(input_channels, conv_channels, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
             nn.BatchNorm1d(conv_channels),
-            nn.GELU(),
+            self.activation,
 
             # nn.Conv1d(conv_channels, hidden_size, kernel_size=kernel_size2, stride=stride2, padding=padding2),     # [B, H, L/8]
             # nn.BatchNorm1d(hidden_size),
@@ -21,18 +29,31 @@ class EEGConvGRUEncoder(nn.Module):
         )
         hidden_size = conv_channels
         # --- GRU over time (sequence dimension after conv) ---
-        self.gru = nn.GRU(
-            input_size=hidden_size,
-            hidden_size=gru_hidden,
-            num_layers=num_layers_gru,
-            batch_first=True,
-            bidirectional=False
-        )
+        if rnn_type == "GRU":
+            self.gru = nn.GRU(
+                input_size=hidden_size,
+                hidden_size=gru_hidden,
+                num_layers=num_layers_gru,
+                dropout=self.rnn_dropout,
+                batch_first=True,
+                bidirectional=False
+            )
+        elif rnn_type == "LSTM":
+            self.gru = nn.LSTM(
+                input_size=hidden_size,
+                hidden_size=gru_hidden,
+                num_layers=num_layers_gru,
+                dropout=self.rnn_dropout,
+                batch_first=True,
+                bidirectional=False
+            )
+        else:
+            print("Unknown RNN type")
         gru_out_dim = gru_hidden * 2 if self.gru.bidirectional else gru_hidden
         # --- Projection head (embedding for contrastive learning) ---
         self.projector = nn.Sequential(
             nn.Linear(gru_out_dim, embedding_dim),
-            nn.GELU(),
+            self.activation,
             nn.Linear(embedding_dim, embedding_dim)
         )
 
