@@ -60,15 +60,19 @@ class EEGContrastivePairs(Dataset):
         noise_std = 0.01 * x.std()
         x = x + torch.randn_like(x) * noise_std
 
-        scale = 1.0 + self.rng.uniform(-0.2, 1.2)
+        scale = 1.0 + self.rng.uniform(-0.1, 0.1)
         x = x * scale
 
-        shift = self.rng.randint(-10, 10)
-        x = torch.roll(x, shifts=shift, dims=0)
+        shift = self.rng.randint(-5, 5)
+        if shift > 0:
+            x = torch.cat([torch.zeros_like(x[:shift]), x[:-shift]], dim=0)
+        elif shift < 0:
+            x = torch.cat([x[-shift:], torch.zeros_like(x[:(-shift)])], dim=0)
 
-        drop_len = self.rng.randint(0, 50)
-        start = self.rng.randint(0, max(0, len(x) - drop_len))
-        x[start:start + drop_len] = 0.0
+        drop_len = self.rng.randint(0, 20)
+        if drop_len > 0:
+            start = self.rng.randint(0, max(1, len(x) - drop_len + 1))
+            x[start:start + drop_len] = 0.0
 
         return x
 

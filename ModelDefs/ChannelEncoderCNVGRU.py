@@ -83,7 +83,6 @@ class EEGConvGRUEncoder(nn.Module):
         # Projection head
         emb = self.projector(out)                      # [B, embedding_dim]
         emb = F.normalize(emb, dim=1)                  # normalize for cosine similarity
-
         return emb
 
 class ModelWrapper(torch.nn.Module):
