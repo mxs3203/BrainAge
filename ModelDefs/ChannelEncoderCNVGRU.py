@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class EEGConvGRUEncoder(nn.Module):
     def __init__(self, input_channels=1,
                  num_layers_gru=1,gru_hidden=12, embedding_dim=64,
-                 kernel_size=7, stride=2, padding=1, conv_channels=32,
+                 kernel_size=7, stride=2, padding=1, conv_channels=32, cnn_dropout=0.0,
                  activation="ReLU", rnn_dropout=0.0, rnn_type="GRU",
                  ):
         super().__init__()
@@ -22,6 +22,7 @@ class EEGConvGRUEncoder(nn.Module):
             nn.Conv1d(input_channels, conv_channels, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
             nn.BatchNorm1d(conv_channels),
             self.activation,
+            nn.Dropout1d(p=cnn_dropout)
 
             # nn.Conv1d(conv_channels, hidden_size, kernel_size=kernel_size2, stride=stride2, padding=padding2),     # [B, H, L/8]
             # nn.BatchNorm1d(hidden_size),
@@ -71,13 +72,17 @@ class EEGConvGRUEncoder(nn.Module):
             assert x.dim() == 3, f"Expected 3D tensor, got {x.shape}"
         # CNN expects [B, C, L]
         feats = self.conv(x)                           # [B, hidden, L']
-        feats = feats.permute(0, 2, 1)                 # [B, L', hidden] for GRU
+        feats = feats.permute(0, 2, 1)
+        # [B, L', hidden] for GRU
 
         # GRU temporal modeling
-        out, h_n = self.gru(feats)                       # [B, L', 2*gru_hidden]
-        #out = out.mean(dim=1)                          # global average pooling over time
+        if isinstance(self.gru, nn.LSTM):
+            out, (h_n, c_n) = self.gru(feats)
+        else:
+            out, h_n = self.gru(feats)                # [B, L', 2*gru_hidden]
+
         if self.gru.bidirectional:
-            out = torch.cat((h_n[-2], h_n[-1]), dim=1)  # If bidiractional
+            out = torch.cat((h_n[-2], h_n[-1]), dim=1)
         else:
             out = h_n[-1]
         # Projection head

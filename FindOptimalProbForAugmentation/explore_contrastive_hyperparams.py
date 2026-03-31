@@ -22,7 +22,7 @@ results = pd.DataFrame(columns=[
     "RNN_dropout", "RNN_Type",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
-    "Score", "ModelType", "KernelSize", "Padding", "Stride",
+    "Score", "ModelType", "KernelSize", "CNN_dropout","Padding", "Stride",
     "KernelSize2", "Padding2", "Stride2"
 ])
 
@@ -53,6 +53,7 @@ def train_channel(trial,channel_idx, channel_name):
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
     rnn_dropout = trial.suggest_float("RNN_dropout", 0.05, 0.2)
+    cnn_dropout = trial.suggest_float("CNN_dropout", 0.05, 0.2)
     projection_size = trial.suggest_int("projection_size",  5, 20)
     activation = trial.suggest_categorical("activation_function",['ReLU', 'GELU', 'SiLU'])
     rnn_type = trial.suggest_categorical("rnn_type", ['LSTM', 'GRU'])
@@ -67,6 +68,7 @@ def train_channel(trial,channel_idx, channel_name):
         kernel_size=kernel_size,
         stride=stride,
         padding=padding,
+        cnn_dropout=cnn_dropout,
         activation=activation,
         conv_channels=channels,
         rnn_dropout=rnn_dropout,
@@ -171,6 +173,7 @@ def train_channel(trial,channel_idx, channel_name):
         "RNN_dropout": rnn_dropout,
         "RNN_Type": rnn_type,
         "KernelSize": kernel_size,
+        "CNN_dropout": cnn_dropout,
         "Padding": padding,
         "Stride": stride,
         "Train_Loss": total_train_loss,
