@@ -67,7 +67,22 @@ val_loader = DataLoader(
     persistent_workers=True
 )
 
-model = AgeModel(attention_heads=2, unlock_encoders=True)
+model = AgeModel(attention_heads=4, unlock_encoders=True, hyperparam_config="lets_try_simple_hyperparam_config.json")
+path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
+print(path)
+if os.path.exists(path):
+    print(f"Continuing training from ... {path}")
+    checkpoint = torch.load(path, map_location=torch.device('cuda'))
+    state_dict = checkpoint
+
+    # If model was trained with DataParallel, the keys will have 'module.' prefix
+    if any(k.startswith('module.') for k in state_dict.keys()):
+        print(f"Detected 'module.' prefix in the state_dict. Removing it...")
+        state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    model.load_state_dict(state_dict)
+else:
+    print()
+    #raise FileNotFoundError(f"Missing Trained model at {path}")
 
 if torch.cuda.device_count() > 1:
     print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
@@ -80,6 +95,8 @@ criteria = nn.SmoothL1Loss(reduction='mean')
 wandb.init(
     project="BrainAge",
     entity="mxs3203",
+#    resume="allow",
+#    id="toasty-thunder-4765",
     config={
         "batch_size": train_loader.batch_size,
         "learning_rate": LR,
@@ -123,7 +140,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     })
     plt.close(fig)
     plt.close(fig2)
-    if epoch % 2 == 0:
+    if epoch % 1 == 0:
         torch.save(model.state_dict(), "ContrastiveModel_chkpoints/FullModel_Epoch{}.pth".format(epoch))
 
 wandb.finish()

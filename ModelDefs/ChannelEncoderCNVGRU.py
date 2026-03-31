@@ -26,12 +26,12 @@ class EEGConvGRUEncoder(nn.Module):
             hidden_size=gru_hidden,
             num_layers=num_layers_gru,
             batch_first=True,
-            bidirectional=True
+            bidirectional=False
         )
-
+        gru_out_dim = gru_hidden * 2 if self.gru.bidirectional else gru_hidden
         # --- Projection head (embedding for contrastive learning) ---
         self.projector = nn.Sequential(
-            nn.Linear(gru_hidden * 2, embedding_dim),
+            nn.Linear(gru_out_dim, embedding_dim),
             nn.GELU(),
             nn.Linear(embedding_dim, embedding_dim)
         )
@@ -53,9 +53,12 @@ class EEGConvGRUEncoder(nn.Module):
         feats = feats.permute(0, 2, 1)                 # [B, L', hidden] for GRU
 
         # GRU temporal modeling
-        out, _ = self.gru(feats)                       # [B, L', 2*gru_hidden]
-        out = out.mean(dim=1)                          # global average pooling over time
-
+        out, h_n = self.gru(feats)                       # [B, L', 2*gru_hidden]
+        #out = out.mean(dim=1)                          # global average pooling over time
+        if self.gru.bidirectional:
+            out = torch.cat((h_n[-2], h_n[-1]), dim=1)  # If bidiractional
+        else:
+            out = h_n[-1]
         # Projection head
         emb = self.projector(out)                      # [B, embedding_dim]
         emb = F.normalize(emb, dim=1)                  # normalize for cosine similarity

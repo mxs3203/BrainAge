@@ -18,6 +18,8 @@ from utils.Visualization import visualize_umap_age_and_id_structure
 with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
+target_align = 0.3
+target_unif = -2.0
 
 torch.backends.cudnn.benchmark = True
 
@@ -31,7 +33,7 @@ def train_channel(channel_idx, channel_name):
     hidden_size = hyperparams['hidden_size']
     num_layers_gru = hyperparams['num_layers_gru']
     projection_size = hyperparams['projection_size']
-    num_epochs = 1000
+    num_epochs = 500
     TEMP = hyperparams['temp']
     BATCH_SIZE = 256
 
@@ -119,7 +121,7 @@ def train_channel(channel_idx, channel_name):
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
             Z = torch.cat([z1, z2], dim=0)
-            if epoch >= 0 and epoch % 50 == 0:
+            if epoch >= 800 and epoch % 50 == 0:
                 age = torch.cat([
                     torch.as_tensor(meta["Age1"], dtype=torch.float32),
                     torch.as_tensor(meta["Age2"], dtype=torch.float32)
@@ -140,8 +142,6 @@ def train_channel(channel_idx, channel_name):
         mean_align = sum(alignments) / len(alignments)
         mean_unif = sum(uniformities) / len(uniformities)
 
-        target_align = 0.3
-        target_unif = -2.0
 
         score = (
                 total_val_loss
@@ -158,14 +158,14 @@ def train_channel(channel_idx, channel_name):
             "Val/DeadFrac": dead_frac,
             "Val/Score": score
         })
-        if epoch >= 500 and epoch % 100 == 0:
+        if epoch >= 100 and epoch % 50 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name in ['EEG.AF3'] :
+        if ch_name not in [] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:

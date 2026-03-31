@@ -49,7 +49,7 @@ class AgeModel(nn.Module):
                 conv_channels=channels
             )
 
-            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch1000.pth")
+            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch100.pth")
             print(path)
             if os.path.exists(path):
                 print(f"Loading pretrained ChannelEncoder for channel {channel_name} from {path}")
@@ -86,10 +86,10 @@ class AgeModel(nn.Module):
 
         # Dense layers
         self.a = nn.SiLU() #GELU()
-        self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, 32)
-        self.fc2 = nn.Linear(32, 32)
-        self.d = nn.Dropout(0.25)
-        self.output = nn.Linear(32, 1)  # Regression output
+        self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.d = nn.Dropout(0.35)
+        self.output = nn.Linear(256, 1)  # Regression output
 
     def forward(self, x):
         # x: [batch, seq_len, 14]
@@ -98,7 +98,25 @@ class AgeModel(nn.Module):
         for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
             f = self.encoders[i](channel_input)
+            # Ensure encoder output is [B, D]
+            if f.dim() == 3:
+                if f.size(1) == 1:
+                    f = f.squeeze(1)
+                elif f.size(-1) == 1:
+                    f = f.squeeze(-1)
+
             f = self.channel_projectors[i](f)
+
+            # Ensure projected output is [B, common_dim]
+            if f.dim() == 3:
+                if f.size(1) == 1:
+                    f = f.squeeze(1)
+                elif f.size(-1) == 1:
+                    f = f.squeeze(-1)
+
+            if f.dim() != 2:
+                raise ValueError(f"Expected per-channel feature [B, D], got {f.shape}")
+
             features.append(f)
 
         # Stack features
