@@ -1,4 +1,3 @@
-import contextlib
 import json
 import threading
 from functools import partial
@@ -52,7 +51,6 @@ def train_channel(trial, channel_name, dataset):
     n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
     gpu_id = trial.number % n_gpus
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
-    stream = torch.cuda.Stream(device=device) if torch.cuda.is_available() else None
 
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
@@ -84,47 +82,46 @@ def train_channel(trial, channel_name, dataset):
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler = GradScaler(device="cuda")
 
-    with torch.cuda.stream(stream) if stream is not None else contextlib.nullcontext():
-        # Training loop
-        for epoch in tqdm(range(1, num_epochs + 1)):
-            model.train()
-            total_train_loss = 0
+    # Training loop
+    for epoch in tqdm(range(1, num_epochs + 1)):
+        model.train()
+        total_train_loss = 0
 
-            for x, ages, meta in train_loader:
-                x, ages = x.to(device), ages.to(device)
-                optimizer.zero_grad()
-                with autocast(device_type="cuda"):
-                    z1, _ = model(augmentor(x))
-                    z2, _ = model(augmentor(x))
-                    loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                       mode="gaussian", gaussian_sigma=5.0)
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-                total_train_loss += loss.item()
-            total_train_loss /= len(train_loader)
-            print(f"Epoch {epoch}/{num_epochs} | Train Loss: {total_train_loss:.4f}")
+        for x, ages, meta in train_loader:
+            x, ages = x.to(device), ages.to(device)
+            optimizer.zero_grad()
+            with autocast(device_type="cuda"):
+                z1, _ = model(augmentor(x))
+                z2, _ = model(augmentor(x))
+                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
+                                                   mode="gaussian", gaussian_sigma=5.0)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            total_train_loss += loss.item()
+        total_train_loss /= len(train_loader)
+        print(f"Epoch {epoch}/{num_epochs} | Train Loss: {total_train_loss:.4f}")
 
-        # Validation
-        model.eval()
-        total_val_loss = 0
-        alignments, uniformities = [], []
-        with torch.no_grad():
-            for x, ages, meta in val_loader:
-                x, ages = x.to(device), ages.to(device)
-                with autocast(device_type="cuda"):
-                    z1, _ = model(augmentor(x))
-                    z2, _ = model(augmentor(x))
-                    loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                       mode="gaussian", gaussian_sigma=5.0)
-                total_val_loss += loss.item()
-                alignments.append(alignment(z1, z2).item())
-                uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
-            mean_std, dead_frac = collapse_score(torch.cat([z1, z2], dim=0))
-            mean_std, dead_frac = mean_std.item(), dead_frac.item()
-        total_val_loss /= len(val_loader)
-        mean_align = sum(alignments) / len(alignments)
-        mean_unif = sum(uniformities) / len(uniformities)
+    # Validation
+    model.eval()
+    total_val_loss = 0
+    alignments, uniformities = [], []
+    with torch.no_grad():
+        for x, ages, meta in val_loader:
+            x, ages = x.to(device), ages.to(device)
+            with autocast(device_type="cuda"):
+                z1, _ = model(augmentor(x))
+                z2, _ = model(augmentor(x))
+                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
+                                                   mode="gaussian", gaussian_sigma=5.0)
+            total_val_loss += loss.item()
+            alignments.append(alignment(z1, z2).item())
+            uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
+        mean_std, dead_frac = collapse_score(torch.cat([z1, z2], dim=0))
+        mean_std, dead_frac = mean_std.item(), dead_frac.item()
+    total_val_loss /= len(val_loader)
+    mean_align = sum(alignments) / len(alignments)
+    mean_unif = sum(uniformities) / len(uniformities)
 
     target_align = 0.3
     target_unif = -2.0
@@ -195,7 +192,7 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler(n_startup_trials=20)
             )
-            n_jobs = torch.cuda.device_count() * 10 if torch.cuda.is_available() else 1
+            n_jobs = torch.cuda.device_count() * 5 if torch.cuda.is_available() else 1
             completed = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
             remaining = max(0, 100 - completed)
             print(f"Completed trials: {completed} | Remaining: {remaining}")
