@@ -48,7 +48,7 @@ class EEGAugmentorGPU(nn.Module):
 
         # 3. Time shift — different roll per sample via scatter
         shifts = torch.randint(-self.max_shift, self.max_shift + 1, (B,), device=x.device)
-        indices = (torch.arange(T, device=x.device).unsqueeze(0) - shifts.unsqueeze(1)) % T
+        indices = torch.remainder(torch.arange(T, device=x.device).unsqueeze(0) - shifts.unsqueeze(1), T)
         x = x.gather(1, indices)
 
         # 4. Segment dropout — zero a random contiguous block per sample
