@@ -1,4 +1,5 @@
 import json
+import threading
 from functools import partial
 
 import optuna
@@ -26,6 +27,7 @@ results = pd.DataFrame(columns=[
     "Collapse_MeanStd", "Collapse_DeadFrac",
     "Score", "ModelType", "KernelSize", "CNN_dropout","Padding", "Stride"
 ])
+results_lock = threading.Lock()
 
 def train_channel(trial, channel_idx, channel_name, dataset):
     LR = 1e-3
@@ -43,7 +45,8 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False, num_workers=4)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False, num_workers=4)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    gpu_id = trial.number % torch.cuda.device_count() if torch.cuda.is_available() else 0
+    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
 
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
@@ -71,10 +74,6 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         rnn_dropout=rnn_dropout,
         rnn_type=rnn_type
     )
-    if torch.cuda.device_count() > 1:
-        print(f"Using {torch.cuda.device_count()} GPUs via DataParallel")
-        model = nn.DataParallel(model, device_ids=[0,1])
-
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
@@ -184,8 +183,9 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         "ModelType": model_type
     }
     global results
-    results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)
-    results.to_csv("contrastive_optuna_results.csv", index=False)
+    with results_lock:
+        results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)
+        results.to_csv("contrastive_optuna_results.csv", index=False)
 
 
     return score
@@ -209,7 +209,7 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler()
             )
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=1)
+            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=2)
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)
