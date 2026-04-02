@@ -172,7 +172,4 @@ class SupervisedContrastiveLearningDataset(Dataset):
             x = torch.as_tensor(s["X"][:, self.channel_idx], dtype=torch.float32)
             meta = {"ID": s.get("ID", ""), "stimulus": s.get("stimulus", ""), "Age": age}
 
-        x1 = self.augment(x)
-        x2 = self.augment(x)
-
-        return x1, x2, torch.tensor(age, dtype=torch.float32), meta
+        return x, torch.tensor(age, dtype=torch.float32), meta

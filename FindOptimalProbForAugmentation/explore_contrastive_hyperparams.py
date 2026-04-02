@@ -6,15 +6,16 @@ import optuna
 import pandas as pd
 
 import torch
-from torch import nn, optim
+from torch import optim
+from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
 from DatasetClasses.SupervisedContrastiveDataset import SupervisedContrastiveLearningDataset
 from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
-from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
-from utils.ContrastiveLoss import nt_xent_loss, supervised_contrastive_loss
+from utils.ContrastiveLoss import supervised_contrastive_loss
+from utils.GpuAugmentor import EEGAugmentorGPU
 
 with open("../config.json", "r") as f:
     config = json.load(f)
@@ -25,16 +26,16 @@ results = pd.DataFrame(columns=[
     "RNN_dropout", "RNN_Type",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
-    "Score", "ModelType", "KernelSize", "CNN_dropout","Padding", "Stride"
+    "Score", "ModelType", "KernelSize", "CNN_dropout", "Padding", "Stride"
 ])
 results_lock = threading.Lock()
 
+
 def train_channel(trial, channel_idx, channel_name, dataset):
     LR = 1e-3
-
     num_epochs = 10
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
-    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256, 1024)
+    BATCH_SIZE = 256
 
     model_type = 'CONVGRU'
 
@@ -42,8 +43,10 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False, num_workers=0)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False, num_workers=0)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True,
+                              drop_last=False, num_workers=0)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE,
+                            drop_last=False, num_workers=0)
 
     gpu_id = trial.number % torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
@@ -52,14 +55,13 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
     rnn_dropout = trial.suggest_float("RNN_dropout", 0.05, 0.2)
     cnn_dropout = trial.suggest_float("CNN_dropout", 0.05, 0.2)
-    projection_size = trial.suggest_int("projection_size",  10, 20)
-    activation = trial.suggest_categorical("activation_function",['ReLU', 'GELU', 'SiLU'])
+    projection_size = trial.suggest_int("projection_size", 10, 20)
+    activation = trial.suggest_categorical("activation_function", ['ReLU', 'GELU', 'SiLU'])
     rnn_type = trial.suggest_categorical("rnn_type", ['GRU'])
     kernel_size = trial.suggest_int("kernel_size", 3, 9)
     stride = trial.suggest_int("stride", 1, 2)
     padding = trial.suggest_int("padding", 1, 4)
     channels = trial.suggest_int("Conv1DChannels", 2, 20)
-    AGE_THRS = 5.0
 
     model = EEGConvGRUEncoder(
         gru_hidden=hidden_size,
@@ -75,89 +77,63 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         rnn_type=rnn_type
     )
     model = model.to(device)
+    augmentor = EEGAugmentorGPU().to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-
-
-    # wandb.init(
-    #     project="BrainAge",
-    #     entity="mxs3203",
-    #     config={
-    #         "model": "Contrastive_SingleChannel{}".format(channel_name),
-    #         "Channel": channel_name,
-    #         "epochs": num_epochs,
-    #         "batch_size": BATCH_SIZE,
-    #         "learning_rate": LR,
-    #         "hidden_size": hidden_size,
-    #         "input_size": 1 if channel_idx != "all" else len(channel_order),
-    #         "temperature": TEMP,
-    #         "projection_size": projection_size,
-    #         "modelType": model_type
-    #     }
-    # )
+    scaler = GradScaler()
 
     # Training loop
     for epoch in tqdm(range(1, num_epochs + 1)):
         model.train()
         total_train_loss = 0
 
-        for i, (x1, x2, ages, meta) in enumerate(train_loader):
-            x1, x2 = x1.to(device), x2.to(device)
+        for x, ages, meta in train_loader:
+            x, ages = x.to(device), ages.to(device)
             optimizer.zero_grad()
-            (z1, _), (z2, _) = model(x1), model(x2)
-            loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
-            loss.backward()
-            optimizer.step()
+            with autocast():
+                z1, _ = model(augmentor(x))
+                z2, _ = model(augmentor(x))
+                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
+                                                   mode="gaussian", gaussian_sigma=5.0)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             total_train_loss += loss.item()
         total_train_loss /= len(train_loader)
-        print(
-        f"Epoch {epoch + 1}/{num_epochs} | Train Loss: {total_train_loss:.4f}")
-        # wandb.log({
-        #     "Train/Loss": total_train_loss,
-        #     "Epoch": epoch
-        # })
+        print(f"Epoch {epoch}/{num_epochs} | Train Loss: {total_train_loss:.4f}")
 
     # Validation
     model.eval()
     total_val_loss = 0
     alignments, uniformities = [], []
     with torch.no_grad():
-        for i, (x1, x2, ages, meta) in enumerate(val_loader):
-            x1, x2 = x1.to(device), x2.to(device)
-            (z1, _), (z2, _) = model(x1), model(x2)
-            loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
+        for x, ages, meta in val_loader:
+            x, ages = x.to(device), ages.to(device)
+            with autocast():
+                z1, _ = model(augmentor(x))
+                z2, _ = model(augmentor(x))
+                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
+                                                   mode="gaussian", gaussian_sigma=5.0)
             total_val_loss += loss.item()
             alignments.append(alignment(z1, z2).item())
             uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
-        Z = torch.cat([z1, z2], dim=0)
-        mean_std, dead_frac = collapse_score(Z)
+        mean_std, dead_frac = collapse_score(torch.cat([z1, z2], dim=0))
         mean_std, dead_frac = mean_std.item(), dead_frac.item()
     total_val_loss /= len(val_loader)
     mean_align = sum(alignments) / len(alignments)
     mean_unif = sum(uniformities) / len(uniformities)
+
     target_align = 0.3
     target_unif = -2.0
-
     score = (
-            total_val_loss
-            + 0.5 * max(0.0, mean_align - target_align)  # penalize if too high (pairs too far)
-            + 0.5 * max(0.0, mean_unif - target_unif)
-            # penalize if too high (collapsed, e.g. -0.25 > -2.0)
+        total_val_loss
+        + 0.5 * max(0.0, mean_align - target_align)
+        + 0.5 * max(0.0, mean_unif - target_unif)
     )
 
     trial.report(score, 0)
     if trial.should_prune():
         raise optuna.TrialPruned()
-    print(
-        f"Val Loss: {total_val_loss:.4f} Mean align: {mean_align} Mean Uniformity: {mean_unif} Total score: {score}")
-    # wandb.log({
-    #     "Val/Loss": total_val_loss ,
-    #     "Val/Align" : mean_align,
-    #     "Val/Unif": mean_unif,
-    #     "Val/ZStd": mean_std,
-    #     "Val/DeadFrac": dead_frac,
-    #     "Val/Score": score
-    # })
-    # wandb.finish()
+    print(f"Val Loss: {total_val_loss:.4f} Align: {mean_align:.4f} Unif: {mean_unif:.4f} Score: {score:.4f}")
 
     trial_results = {
         "Channel": channel_name,
@@ -187,12 +163,12 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)
         results.to_csv("contrastive_optuna_results.csv", index=False)
 
-
     return score
+
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
+        if ch_name not in ['EEG.AF3', 'EEG.F7']:
             print(f"\n=== Training channel {idx}: {ch_name} ===")
 
             dataset = SupervisedContrastiveLearningDataset(
@@ -210,22 +186,25 @@ def main():
                 sampler=optuna.samplers.TPESampler(n_startup_trials=20)
             )
             n_jobs = torch.cuda.device_count() * 10 if torch.cuda.is_available() else 1
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=n_jobs)
+            study.optimize(
+                partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset),
+                n_trials=100,
+                n_jobs=n_jobs
+            )
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)
         else:
             print("skipping {}".format(ch_name))
 
+
 if __name__ == "__main__":
     main()
 
 '''
-
 Situation	        Alignment	        Uniformity	        Interpretation
 ✅ Healthy	        0.2 – 0.5	        −1.5 – −2.5	        Positives close, embeddings diverse.
-⚠️ Collapsed(points same)≈ 0	        ≈ 0	                Model failed; loss near 0 but no structure.
+⚠️ Collapsed        ≈ 0	                ≈ 0	                Model failed; loss near 0 but no structure.
 ⚠️ Over-spread	    > 1	                ≪ −3	            Embeddings uniform but positives far → under-invariance.
 ⚠️ Over-invariant	< 0.1	            > −1	            All positives overlap → lack diversity.
-
 '''
