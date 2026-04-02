@@ -33,7 +33,7 @@ results_lock = threading.Lock()
 
 def train_channel(trial, channel_name, dataset):
     LR = 1e-3
-    num_epochs = 10
+    num_epochs = 20
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
     BATCH_SIZE = 256
 
@@ -48,9 +48,7 @@ def train_channel(trial, channel_name, dataset):
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE,
                             drop_last=False, num_workers=0)
 
-    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
-    gpu_id = trial.number % n_gpus
-    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
@@ -93,8 +91,8 @@ def train_channel(trial, channel_name, dataset):
             with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
-                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                   mode="gaussian", gaussian_sigma=5.0)
+            loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
+                                               mode="gaussian", gaussian_sigma=5.0)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
@@ -112,8 +110,8 @@ def train_channel(trial, channel_name, dataset):
             with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
-                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                   mode="gaussian", gaussian_sigma=5.0)
+            loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
+                                               mode="gaussian", gaussian_sigma=5.0)
             total_val_loss += loss.item()
             alignments.append(alignment(z1, z2).item())
             uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
@@ -166,15 +164,27 @@ def train_channel(trial, channel_name, dataset):
 
     del model, augmentor, optimizer, scaler
     del train_loader, val_loader, train_set, val_set
-    with torch.cuda.device(gpu_id):
-        torch.cuda.synchronize()
-        torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
 
     return score
 
 
 def main():
-    for idx, ch_name in enumerate(channel_order):
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--channels", type=int, nargs=2, default=None,
+                        help="Start and end index of channels to optimise, e.g. --channels 0 7. "
+                             "Omit to run all channels (single-GPU default mode).")
+    args = parser.parse_args()
+
+    if args.channels is not None:
+        start, end = args.channels
+        subset = list(enumerate(channel_order))[start:end]
+    else:
+        subset = list(enumerate(channel_order))
+
+    for idx, ch_name in subset:
         if ch_name not in ['EEG.AF3', 'EEG.F7']:
             print(f"\n=== Training channel {idx}: {ch_name} ===")
 
@@ -192,7 +202,9 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler(n_startup_trials=20)
             )
-            n_jobs = torch.cuda.device_count() * 5 if torch.cuda.is_available() else 1
+            # split mode: each process owns one GPU → fixed 5 parallel trials
+            # default mode: scale with however many GPUs are visible
+            n_jobs = 5 if args.channels is not None else (torch.cuda.device_count() * 5 if torch.cuda.is_available() else 1)
             completed = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
             remaining = max(0, 100 - completed)
             print(f"Completed trials: {completed} | Remaining: {remaining}")

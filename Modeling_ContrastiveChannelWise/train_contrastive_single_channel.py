@@ -110,8 +110,8 @@ def train_channel(channel_idx, channel_name):
             with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
-                loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                   mode="gaussian", gaussian_sigma=5.0)
+            loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
+                                               mode="gaussian", gaussian_sigma=5.0)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
@@ -128,8 +128,8 @@ def train_channel(channel_idx, channel_name):
                 with autocast(device_type="cuda"):
                     z1, _ = model(augmentor(x))
                     z2, _ = model(augmentor(x))
-                    loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
-                                                       mode="gaussian", gaussian_sigma=5.0)
+                loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
+                                                   mode="gaussian", gaussian_sigma=5.0)
                 total_val_loss += loss.item()
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
