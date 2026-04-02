@@ -34,7 +34,7 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
     BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256, 1024)
 
-    model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
+    model_type = 'CONVGRU'
 
     train_size = int(0.5 * len(dataset))
     val_size = len(dataset) - train_size
@@ -49,10 +49,10 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
     rnn_dropout = trial.suggest_float("RNN_dropout", 0.05, 0.2)
     cnn_dropout = trial.suggest_float("CNN_dropout", 0.05, 0.2)
-    projection_size = trial.suggest_int("projection_size",  5, 20)
+    projection_size = trial.suggest_int("projection_size",  10, 20)
     activation = trial.suggest_categorical("activation_function",['ReLU', 'GELU', 'SiLU'])
-    rnn_type = trial.suggest_categorical("rnn_type", ['LSTM', 'GRU'])
-    kernel_size = trial.suggest_int("kernel_size", 2, 9)
+    rnn_type = trial.suggest_categorical("rnn_type", ['GRU'])
+    kernel_size = trial.suggest_int("kernel_size", 3, 9)
     stride = trial.suggest_int("stride", 1, 2)
     padding = trial.suggest_int("padding", 1, 4)
     channels = trial.suggest_int("Conv1DChannels", 2, 20)

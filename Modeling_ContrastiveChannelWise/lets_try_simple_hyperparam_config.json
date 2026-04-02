@@ -1,31 +1,31 @@
 {
    "EEG.AF3": {
      "temp": 0.19288928973319588,
-     "hidden_size": 15,
+     "hidden_size": 19,
      "num_layers_gru": 2,
      "RNN_dropout": 0.0636670321809287,
-     "CNN_dropout": 0.07574934397195099,
-     "projection_size": 20,
+     "CNN_dropout": 0.09574934397195099,
+     "projection_size": 12,
      "activation_function": "ReLU",
      "rnn_type": "GRU",
-     "kernel_size": 5,
-     "stride": 2,
+     "kernel_size": 4,
+     "stride": 1,
      "padding": 1,
-     "Conv1DChannels": 20
+     "Conv1DChannels": 19
    },
    "EEG.F7": {
-       "temp": 0.1719,
-       "hidden_size": 19,
+       "temp": 0.198,
+       "hidden_size": 20,
        "num_layers_gru": 2,
-       "RNN_dropout": 0.0737,
-       "CNN_dropout": 0.1610,
-       "projection_size": 16,
-       "activation_function": "GELU",
+       "RNN_dropout": 0.14,
+       "CNN_dropout": 0.06,
+       "projection_size": 20,
+       "activation_function": "ReLU",
        "rnn_type": "GRU",
-       "kernel_size": 4,
+       "kernel_size": 6,
        "stride": 1,
-       "padding": 4,
-       "Conv1DChannels": 15
+       "padding": 3,
+       "Conv1DChannels": 18
    },
   "EEG.F3": {
      "temp": 0.1669,
