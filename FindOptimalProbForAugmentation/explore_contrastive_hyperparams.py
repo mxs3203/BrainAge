@@ -42,8 +42,8 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False, num_workers=4)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False, num_workers=4)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False, num_workers=0)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False, num_workers=0)
 
     gpu_id = trial.number % torch.cuda.device_count() if torch.cuda.is_available() else 0
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
@@ -207,9 +207,10 @@ def main():
                 storage="sqlite:///db.sqlite3",
                 direction="minimize",
                 load_if_exists=True,
-                sampler=optuna.samplers.TPESampler()
+                sampler=optuna.samplers.TPESampler(n_startup_trials=20)
             )
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=2)
+            n_jobs = torch.cuda.device_count() * 10 if torch.cuda.is_available() else 1
+            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=n_jobs)
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)
