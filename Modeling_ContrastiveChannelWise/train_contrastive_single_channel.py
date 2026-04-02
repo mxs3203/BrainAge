@@ -4,7 +4,7 @@ import os
 import torch
 from matplotlib import pyplot as plt
 from torch import optim
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
@@ -107,7 +107,7 @@ def train_channel(channel_idx, channel_name):
         for x, ages, meta in train_loader:
             x, ages = x.to(device), ages.to(device)
             optimizer.zero_grad()
-            with autocast():
+            with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
                 loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
@@ -125,7 +125,7 @@ def train_channel(channel_idx, channel_name):
         with torch.no_grad():
             for x, ages, meta in val_loader:
                 x, ages = x.to(device), ages.to(device)
-                with autocast():
+                with autocast(device_type="cuda"):
                     z1, _ = model(augmentor(x))
                     z2, _ = model(augmentor(x))
                     loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
@@ -144,7 +144,7 @@ def train_channel(channel_idx, channel_name):
             with torch.no_grad():
                 for x_u, ages_u, meta_u in val_loader:
                     x_u, ages_u = x_u.to(device), ages_u.to(device)
-                    with autocast():
+                    with autocast(device_type="cuda"):
                         z1_u, _ = model(augmentor(x_u))
                         z2_u, _ = model(augmentor(x_u))
                     all_z.append(torch.cat([z1_u, z2_u], dim=0).cpu())

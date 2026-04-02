@@ -7,7 +7,7 @@ import pandas as pd
 
 import torch
 from torch import optim
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
