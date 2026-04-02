@@ -31,7 +31,7 @@ results = pd.DataFrame(columns=[
 results_lock = threading.Lock()
 
 
-def train_channel(trial, channel_idx, channel_name, dataset):
+def train_channel(trial, channel_name, dataset):
     LR = 1e-3
     num_epochs = 10
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
@@ -163,6 +163,11 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)
         results.to_csv("contrastive_optuna_results.csv", index=False)
 
+    del model, augmentor, optimizer, scaler
+    del train_loader, val_loader, train_set, val_set
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
+
     return score
 
 
@@ -185,12 +190,16 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler(n_startup_trials=20)
             )
-            n_jobs = torch.cuda.device_count() * 10 if torch.cuda.is_available() else 1
-            study.optimize(
-                partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset),
-                n_trials=100,
-                n_jobs=n_jobs
-            )
+            n_jobs = torch.cuda.device_count() * 5 if torch.cuda.is_available() else 1
+            completed = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
+            remaining = max(0, 100 - completed)
+            print(f"Completed trials: {completed} | Remaining: {remaining}")
+            if remaining > 0:
+                study.optimize(
+                    partial(train_channel, channel_name=ch_name, dataset=dataset),
+                    n_trials=remaining,
+                    n_jobs=n_jobs
+                )
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)
