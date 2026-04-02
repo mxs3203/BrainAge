@@ -37,16 +37,23 @@ class AgeModel(nn.Module):
             stride = hyperparams['stride']
             padding = hyperparams['padding']
             channels = hyperparams['channels']
+            cnn_dropout = hyperparams['cnn_dropout']
+            rnn_dropout = hyperparams['rnn_dropout']
+            activation = hyperparams['activation_function']
+            rnn_type = hyperparams['rnn_type']
 
             model = EEGConvGRUEncoder(
-                hidden_size=hidden_size,
                 gru_hidden=hidden_size,
                 embedding_dim=projection_size,
                 num_layers_gru=num_layers_gru,
                 kernel_size=kernel_size,
                 stride=stride,
                 padding=padding,
-                conv_channels=channels
+                cnn_dropout=cnn_dropout,
+                activation=activation,
+                conv_channels=channels,
+                rnn_dropout=rnn_dropout,
+                rnn_type=rnn_type
             )
 
             path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch100.pth")
@@ -97,7 +104,7 @@ class AgeModel(nn.Module):
         # Apply each pretrained encoder to its respective channel
         for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
-            f = self.encoders[i](channel_input)
+            projection,f = self.encoders[i](channel_input)
             # Ensure encoder output is [B, D]
             if f.dim() == 3:
                 if f.size(1) == 1:

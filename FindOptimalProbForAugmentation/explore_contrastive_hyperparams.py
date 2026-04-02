@@ -9,10 +9,12 @@ from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
+from DatasetClasses.SupervisedContrastiveDataset import SupervisedContrastiveLearningDataset
 from utils.embedding_metrics import alignment, uniformity, collapse_score
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
-from utils.UnsupervisedContrastiveLoss import nt_xent_loss
+from utils.ContrastiveLoss import nt_xent_loss, supervised_contrastive_loss
+
 with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
@@ -22,31 +24,24 @@ results = pd.DataFrame(columns=[
     "RNN_dropout", "RNN_Type",
     "Train_Loss", "Val_Loss", "Alignment", "Uniformity",
     "Collapse_MeanStd", "Collapse_DeadFrac",
-    "Score", "ModelType", "KernelSize", "CNN_dropout","Padding", "Stride",
-    "KernelSize2", "Padding2", "Stride2"
+    "Score", "ModelType", "KernelSize", "CNN_dropout","Padding", "Stride"
 ])
 
-def train_channel(trial,channel_idx, channel_name):
+def train_channel(trial, channel_idx, channel_name, dataset):
     LR = 1e-3
 
-    num_epochs = 100
+    num_epochs = 10
     TEMP = trial.suggest_float("temp", 0.05, 0.2)
-    BATCH_SIZE = 1024 #trial.suggest_int("batch_size", 256, 1024)
+    BATCH_SIZE = 256 #trial.suggest_int("batch_size", 256, 1024)
 
     model_type = 'CONVGRU'#trial.suggest_categorical(name='model', choices=['LSTM','CONVGRU'])
-
-    dataset = EEGContrastivePairs(
-        data_dir="../results/EEG_LSTM_windows/",
-        channel_idx=channel_idx,
-        subset_fraction=1.0
-    )
 
     train_size = int(0.5 * len(dataset))
     val_size = len(dataset) - train_size
     train_set, val_set = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False)
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, drop_last=False, num_workers=4)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, drop_last=False, num_workers=4)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -61,6 +56,8 @@ def train_channel(trial,channel_idx, channel_name):
     stride = trial.suggest_int("stride", 1, 2)
     padding = trial.suggest_int("padding", 1, 4)
     channels = trial.suggest_int("Conv1DChannels", 2, 20)
+    AGE_THRS = 5.0
+
     model = EEGConvGRUEncoder(
         gru_hidden=hidden_size,
         embedding_dim=projection_size,
@@ -104,11 +101,11 @@ def train_channel(trial,channel_idx, channel_name):
         model.train()
         total_train_loss = 0
 
-        for i, (x1, x2, meta) in enumerate(train_loader):
+        for i, (x1, x2, ages, meta) in enumerate(train_loader):
             x1, x2 = x1.to(device), x2.to(device)
             optimizer.zero_grad()
-            z1, z2 = model(x1), model(x2)
-            loss = nt_xent_loss(z1, z2, temperature=TEMP)
+            (z1, _), (z2, _) = model(x1), model(x2)
+            loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
             loss.backward()
             optimizer.step()
             total_train_loss += loss.item()
@@ -125,10 +122,10 @@ def train_channel(trial,channel_idx, channel_name):
     total_val_loss = 0
     alignments, uniformities = [], []
     with torch.no_grad():
-        for i, (x1, x2, meta) in enumerate(val_loader):
+        for i, (x1, x2, ages, meta) in enumerate(val_loader):
             x1, x2 = x1.to(device), x2.to(device)
-            z1, z2 = model(x1), model(x2)
-            loss = nt_xent_loss(z1, z2, temperature=TEMP)
+            (z1, _), (z2, _) = model(x1), model(x2)
+            loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
             total_val_loss += loss.item()
             alignments.append(alignment(z1, z2).item())
             uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
@@ -143,10 +140,11 @@ def train_channel(trial,channel_idx, channel_name):
 
     score = (
             total_val_loss
-            + 0.5 * abs(mean_align - target_align)
-            + 0.5 * abs(mean_unif - target_unif)
+            + 0.5 * max(0.0, mean_align - target_align)  # penalize if too high (pairs too far)
+            + 0.5 * max(0.0, mean_unif - target_unif)
+            # penalize if too high (collapsed, e.g. -0.25 > -2.0)
     )
-    #score = total_val_loss + 0.1 * mean_align + 0.1 * mean_unif
+
     trial.report(score, 0)
     if trial.should_prune():
         raise optuna.TrialPruned()
@@ -194,8 +192,16 @@ def train_channel(trial,channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in [] :
+        if ch_name not in ['EEG.AF3', 'EEG.F7'] :
             print(f"\n=== Training channel {idx}: {ch_name} ===")
+
+            dataset = SupervisedContrastiveLearningDataset(
+                data_dir="../results/EEG_LSTM_windows/",
+                channel_idx=idx,
+                subset_fraction=0.1,
+                preload=True
+            )
+
             study = optuna.create_study(
                 study_name=ch_name,
                 storage="sqlite:///db.sqlite3",
@@ -203,7 +209,7 @@ def main():
                 load_if_exists=True,
                 sampler=optuna.samplers.TPESampler()
             )
-            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name), n_trials=100, n_jobs=1)
+            study.optimize(partial(train_channel, channel_idx=idx, channel_name=ch_name, dataset=dataset), n_trials=100, n_jobs=1)
 
             print("Best params:", study.best_params)
             print("Best score:", study.best_value)

@@ -53,9 +53,7 @@ class EEGConvGRUEncoder(nn.Module):
         gru_out_dim = gru_hidden * 2 if self.gru.bidirectional else gru_hidden
         # --- Projection head (embedding for contrastive learning) ---
         self.projector = nn.Sequential(
-            nn.Linear(gru_out_dim, embedding_dim),
-            self.activation,
-            nn.Linear(embedding_dim, embedding_dim)
+            nn.Linear(gru_out_dim, embedding_dim)
         )
 
     def forward(self, x):
@@ -88,7 +86,7 @@ class EEGConvGRUEncoder(nn.Module):
         # Projection head
         emb = self.projector(out)                      # [B, embedding_dim]
         emb = F.normalize(emb, dim=1)                  # normalize for cosine similarity
-        return emb
+        return emb, out
 
 class ModelWrapper(torch.nn.Module):
     def __init__(self, full_model, channel_idx):

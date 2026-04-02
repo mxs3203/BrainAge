@@ -7,12 +7,11 @@ from torch import nn, optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 import wandb
+from DatasetClasses.SupervisedContrastiveDataset import SupervisedContrastiveLearningDataset
 from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 
 from utils.embedding_metrics import alignment, uniformity, collapse_score
-from ModelDefs.ChannelEncoderLSTM import ChannelEncoder
-from DatasetClasses.DataDrivenContrastiveDataset import EEGContrastivePairs
-from utils.UnsupervisedContrastiveLoss import nt_xent_loss
+from utils.ContrastiveLoss import nt_xent_loss, supervised_contrastive_loss
 from utils.Visualization import visualize_umap_age_and_id_structure
 
 with open("../config.json", "r") as f:
@@ -26,26 +25,32 @@ torch.backends.cudnn.benchmark = True
 def train_channel(channel_idx, channel_name):
     os.makedirs("ContrastiveModel_chkpoints", exist_ok=True)
 
-    with open("../FindOptimalProbForAugmentation/contrastive_hyperparams.json", "r") as f:
+    with open("lets_try_simple_hyperparam_config.json", "r") as f:
         config = json.load(f)
     hyperparams = config[channel_name]
-    LR = 1e-4
+    LR = 1e-3
     hidden_size = hyperparams['hidden_size']
     num_layers_gru = hyperparams['num_layers_gru']
     projection_size = hyperparams['projection_size']
+    cnn_dropout = hyperparams['CNN_dropout']
+    rnn_dropout = hyperparams['RNN_dropout']
+    activation = hyperparams['activation_function']
+    rnn_type = hyperparams['rnn_type']
     num_epochs = 500
     TEMP = hyperparams['temp']
     BATCH_SIZE = 256
+    AGE_THRS = 5
 
     kernel_size = hyperparams['kernel_size']
     stride = hyperparams['stride']
     padding = hyperparams['padding']
-    channels = hyperparams['channels']
+    channels = hyperparams['Conv1DChannels']
 
-    dataset = EEGContrastivePairs(
+    dataset = SupervisedContrastiveLearningDataset(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
-        subset_fraction=1.0
+        subset_fraction=0.5,
+        preload=False
     )
 
     train_size = int(0.8 * len(dataset))
@@ -58,14 +63,17 @@ def train_channel(channel_idx, channel_name):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = EEGConvGRUEncoder(
-        hidden_size=hidden_size,
         gru_hidden=hidden_size,
         embedding_dim=projection_size,
         num_layers_gru=num_layers_gru,
         kernel_size=kernel_size,
         stride=stride,
         padding=padding,
-        conv_channels=channels
+        cnn_dropout=cnn_dropout,
+        activation=activation,
+        conv_channels=channels,
+        rnn_dropout=rnn_dropout,
+        rnn_type=rnn_type
     )
 
     if torch.cuda.device_count() > 1:
@@ -86,11 +94,8 @@ def train_channel(channel_idx, channel_name):
             "epochs": num_epochs,
             "batch_size": train_loader.batch_size,
             "learning_rate": LR,
-            "hidden_size": hidden_size,
-            "input_size": 1 if channel_idx != "all" else len(channel_order),
-            "num_layers_gru": num_layers_gru,
-            "temperature": TEMP,
-            "FullData": True
+            "FullData": True,
+            "config_file": config
         }
     )
 
@@ -99,11 +104,11 @@ def train_channel(channel_idx, channel_name):
         model.train()
         total_train_loss = 0
 
-        for i, (x1, x2, meta) in enumerate(train_loader):
-            x1, x2 = x1.to(device), x2.to(device)
+        for i, (x1, x2, ages, meta) in enumerate(train_loader):
+            x1, x2, ages = x1.to(device), x2.to(device), ages.to(device)
             optimizer.zero_grad()
-            z1, z2 = model(x1), model(x2)
-            loss = nt_xent_loss(z1, z2, temperature=TEMP)
+            (z1,_), (z2,_) = model(x1), model(x2)
+            loss = supervised_contrastive_loss(z1, z2,ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
             loss.backward()
             optimizer.step()
             total_train_loss += loss.item()
@@ -113,31 +118,35 @@ def train_channel(channel_idx, channel_name):
         total_val_loss = 0
         alignments, uniformities = [], []
         with torch.no_grad():
-            for i, (x1, x2, meta) in enumerate(val_loader):
-                x1, x2 = x1.to(device), x2.to(device)
-                z1, z2 = model(x1), model(x2)
-                loss = nt_xent_loss(z1, z2)
+            for i, (x1, x2, ages, meta) in enumerate(val_loader):
+                x1, x2, ages = x1.to(device), x2.to(device), ages.to(device)
+                (z1,_), (z2,_) = model(x1), model(x2)
+                loss = supervised_contrastive_loss(z1, z2,ages=ages, temperature=TEMP, mode="gaussian", gaussian_sigma=5.0)
                 total_val_loss += loss.item()
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
-            Z = torch.cat([z1, z2], dim=0)
-            if epoch >= 800 and epoch % 50 == 0:
-                age = torch.cat([
-                    torch.as_tensor(meta["Age1"], dtype=torch.float32),
-                    torch.as_tensor(meta["Age2"], dtype=torch.float32)
-                ], dim=0)
-                ids = list(meta["ID1"]) + list(meta["ID2"]) if "ID1" in meta else list(meta["ID"]) + list(meta["ID"])
-                fig = visualize_umap_age_and_id_structure(
-                    Z=Z,
-                    age=age,
-                    ids=ids,
-                    epoch=epoch,
-                    title_prefix=f"UMAP_{channel_name}"
-                )
-                wandb.log({"UMAP": wandb.Image(fig)})
-                plt.close(fig)
-            mean_std, dead_frac = collapse_score(Z)
+            mean_std, dead_frac = collapse_score(torch.cat([z1, z2], dim=0))
             mean_std, dead_frac = mean_std.item(), dead_frac.item()
+
+        if epoch >= 1 and epoch % 1 == 0:
+            model.eval()
+            all_z, all_ages, all_ids = [], [], []
+            with torch.no_grad():
+                for x1_u, x2_u, ages_u, meta_u in val_loader:
+                    x1_u, x2_u = x1_u.to(device), x2_u.to(device)
+                    (z1_u, _), (z2_u, _) = model(x1_u), model(x2_u)
+                    all_z.append(torch.cat([z1_u, z2_u], dim=0).cpu())
+                    all_ages.append(torch.cat([ages_u, ages_u], dim=0))
+                    all_ids.extend(list(meta_u["ID"]) + list(meta_u["ID"]))
+            fig = visualize_umap_age_and_id_structure(
+                Z=torch.cat(all_z, dim=0),
+                age=torch.cat(all_ages, dim=0),
+                ids=all_ids,
+                epoch=epoch,
+                title_prefix=f"UMAP_{channel_name}"
+            )
+            wandb.log({"UMAP": wandb.Image(fig)})
+            plt.close(fig)
         total_val_loss /= len(val_loader)
         mean_align = sum(alignments) / len(alignments)
         mean_unif = sum(uniformities) / len(uniformities)
@@ -156,9 +165,10 @@ def train_channel(channel_idx, channel_name):
             "Val/Unif": mean_unif,
             "Val/ZStd": mean_std,
             "Val/DeadFrac": dead_frac,
-            "Val/Score": score
+            "Val/Score": score,
+            "Val/EmbStd_min": torch.cat([z1, z2], dim=0).std(dim=0).min().item()
         })
-        if epoch >= 100 and epoch % 50 == 0:
+        if epoch >= 10 and epoch % 10 == 0:
             torch.save(model.state_dict(), "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
     wandb.finish()
