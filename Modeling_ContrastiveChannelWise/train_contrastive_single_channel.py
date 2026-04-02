@@ -84,7 +84,7 @@ def train_channel(channel_idx, channel_name):
     model = torch.compile(model)
     augmentor = EEGAugmentorGPU().to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    scaler = GradScaler()
+    scaler = GradScaler(device="cuda")
 
     wandb.init(
         project="BrainAge",

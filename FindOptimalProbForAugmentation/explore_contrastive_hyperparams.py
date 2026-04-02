@@ -79,7 +79,7 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     model = model.to(device)
     augmentor = EEGAugmentorGPU().to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    scaler = GradScaler()
+    scaler = GradScaler(device="cuda")
 
     # Training loop
     for epoch in tqdm(range(1, num_epochs + 1)):
@@ -89,7 +89,7 @@ def train_channel(trial, channel_idx, channel_name, dataset):
         for x, ages, meta in train_loader:
             x, ages = x.to(device), ages.to(device)
             optimizer.zero_grad()
-            with autocast():
+            with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
                 loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
@@ -108,7 +108,7 @@ def train_channel(trial, channel_idx, channel_name, dataset):
     with torch.no_grad():
         for x, ages, meta in val_loader:
             x, ages = x.to(device), ages.to(device)
-            with autocast():
+            with autocast(device_type="cuda"):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
                 loss = supervised_contrastive_loss(z1, z2, ages=ages, temperature=TEMP,
