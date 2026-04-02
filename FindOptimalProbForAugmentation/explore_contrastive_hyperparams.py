@@ -48,7 +48,8 @@ def train_channel(trial, channel_name, dataset):
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE,
                             drop_last=False, num_workers=0)
 
-    gpu_id = trial.number % torch.cuda.device_count() if torch.cuda.is_available() else 0
+    n_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
+    gpu_id = trial.number % n_gpus
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
 
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
@@ -165,8 +166,9 @@ def train_channel(trial, channel_name, dataset):
 
     del model, augmentor, optimizer, scaler
     del train_loader, val_loader, train_set, val_set
-    torch.cuda.synchronize()
-    torch.cuda.empty_cache()
+    with torch.cuda.device(gpu_id):
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
 
     return score
 
