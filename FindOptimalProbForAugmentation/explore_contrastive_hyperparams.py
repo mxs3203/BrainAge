@@ -185,7 +185,7 @@ def main():
         subset = list(enumerate(channel_order))
 
     for idx, ch_name in subset:
-        if ch_name not in ['EEG.AF3', 'EEG.F7']:
+        if ch_name not in ['EEG.AF3', 'EEG.F7', 'EEG.F3', 'EEG.FC5', 'EEG.T7', 'EEG.P7']:
             print(f"\n=== Training channel {idx}: {ch_name} ===")
 
             dataset = SupervisedContrastiveLearningDataset(
