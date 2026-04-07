@@ -38,7 +38,7 @@ def train_channel(channel_idx, channel_name):
     rnn_dropout = hyperparams['RNN_dropout']
     activation = hyperparams['activation_function']
     rnn_type = hyperparams['rnn_type']
-    num_epochs = 500
+    num_epochs = 200
     TEMP = hyperparams['temp']
     BATCH_SIZE = 256
 
@@ -176,7 +176,7 @@ def train_channel(channel_idx, channel_name):
             "Val/Score": score,
             "Val/EmbStd_min": torch.cat([z1, z2], dim=0).std(dim=0).min().item()
         })
-        if epoch >= 10 and epoch % 10 == 0:
+        if epoch >= 50 and epoch % 10 == 0:
             torch.save(model.state_dict(),
                        "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
@@ -185,7 +185,7 @@ def train_channel(channel_idx, channel_name):
 
 def main():
     for idx, ch_name in enumerate(channel_order):
-        if ch_name not in []:
+        if ch_name not in ['EEG.AF3', 'EEG.F7']:
             print(f"\n=== Training channel {idx}: {ch_name} ===")
             train_channel(idx, ch_name)
         else:
