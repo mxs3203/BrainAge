@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 
@@ -63,8 +64,7 @@ def train_channel(channel_idx, channel_name):
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE,
                             drop_last=False, num_workers=0, pin_memory=False)
 
-    gpu_id = channel_idx % torch.cuda.device_count() if torch.cuda.is_available() else 0
-    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     model = EEGConvGRUEncoder(
         gru_hidden=hidden_size,
@@ -184,12 +184,26 @@ def train_channel(channel_idx, channel_name):
 
 
 def main():
-    for idx, ch_name in enumerate(channel_order):
-        if ch_name not in ['EEG.AF3', 'EEG.F7']:
-            print(f"\n=== Training channel {idx}: {ch_name} ===")
-            train_channel(idx, ch_name)
-        else:
-            print("skipping {}".format(ch_name))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--channels", type=int, nargs=2, default=None,
+                        metavar=("START", "END"),
+                        help="Range of channel indices to train [START, END). "
+                             "Omit to train all channels on a single GPU.")
+    args = parser.parse_args()
+
+    skip = {'EEG.AF3', 'EEG.F7'}
+
+    if args.channels is not None:
+        start, end = args.channels
+        channels_to_run = [(idx, ch) for idx, ch in enumerate(channel_order)
+                           if start <= idx < end and ch not in skip]
+    else:
+        channels_to_run = [(idx, ch) for idx, ch in enumerate(channel_order)
+                           if ch not in skip]
+
+    for idx, ch_name in channels_to_run:
+        print(f"\n=== Training channel {idx}: {ch_name} ===")
+        train_channel(idx, ch_name)
 
 
 if __name__ == "__main__":
