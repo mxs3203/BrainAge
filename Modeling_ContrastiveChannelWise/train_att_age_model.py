@@ -23,7 +23,7 @@ with open("../config.json", "r") as f:
 channel_order = config["EEG_columns"]
 
 BATCH_SIZE = 256
-LR = 1e-5
+LR = 1e-4
 num_epochs = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ROOT_DIR = "../results/EEG_LSTM_windows/"

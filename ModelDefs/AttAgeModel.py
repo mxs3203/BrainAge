@@ -56,7 +56,7 @@ class AgeModel(nn.Module):
                 rnn_type=rnn_type
             )
 
-            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}_Epoch100.pth")
+            path = os.path.join(pretrained_dir, f"EEGContrsative_forCH_{channel_name}.pth")
             print(path)
             if os.path.exists(path):
                 print(f"Loading pretrained ChannelEncoder for channel {channel_name} from {path}")
