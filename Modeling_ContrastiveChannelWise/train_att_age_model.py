@@ -23,7 +23,7 @@ with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
 
-BATCH_SIZE = 256
+BATCH_SIZE = 5000
 LR = 1e-4
 num_epochs = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -68,7 +68,7 @@ val_loader = DataLoader(
     persistent_workers=True
 )
 
-model = AgeModel(attention_heads=1, common_dim=14, unlock_encoders=False, hyperparam_config="lets_try_simple_hyperparam_config.json")
+model = AgeModel(attention_heads=1, common_dim=32, unlock_encoders=False, hyperparam_config="lets_try_simple_hyperparam_config.json")
 path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
 print(path)
 if os.path.exists(path):
@@ -117,6 +117,8 @@ for epoch in tqdm(range(1, num_epochs + 1)):
             y_pred, att = model(x)
             loss = criteria(y, y_pred)
         scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         scaler.step(optimizer)
         scaler.update()
         total_train_loss += loss.item()
