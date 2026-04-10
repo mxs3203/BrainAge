@@ -63,11 +63,11 @@ class AgeModel(nn.Module):
                 checkpoint = torch.load(path, map_location=torch.device('cuda'))
                 state_dict = checkpoint
 
-                # If model was trained with DataParallel, the keys will have 'module.' prefix
                 if any(k.startswith('module.') for k in state_dict.keys()):
-                    print(f"Detected 'module.' prefix in the state_dict. Removing it...")
                     state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-                #model.load_state_dict(state_dict)
+                if any(k.startswith('_orig_mod.') for k in state_dict.keys()):
+                    state_dict = {k.replace('_orig_mod.', ''): v for k, v in state_dict.items()}
+                model.load_state_dict(state_dict)
             else:
                 print()
                 raise FileNotFoundError(f"Missing pretrained model at {path}")
@@ -79,7 +79,7 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
             self.channel_projectors.append(
                 nn.Sequential(
-                    nn.Linear(projection_size, common_dim, bias=False),
+                    nn.Linear(hidden_size, common_dim, bias=False),
                     nn.LayerNorm(common_dim)
                 )
             )
@@ -95,7 +95,7 @@ class AgeModel(nn.Module):
         self.a = nn.SiLU() #GELU()
         self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.d = nn.Dropout(0.35)
+        self.d = nn.Dropout(0.05)
         self.output = nn.Linear(256, 1)  # Regression output
 
     def forward(self, x):

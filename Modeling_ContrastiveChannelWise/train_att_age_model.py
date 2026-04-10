@@ -68,7 +68,7 @@ val_loader = DataLoader(
     persistent_workers=True
 )
 
-model = AgeModel(attention_heads=4, unlock_encoders=True, hyperparam_config="lets_try_simple_hyperparam_config.json")
+model = AgeModel(attention_heads=1, common_dim=14, unlock_encoders=False, hyperparam_config="lets_try_simple_hyperparam_config.json")
 path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
 print(path)
 if os.path.exists(path):
@@ -82,7 +82,7 @@ if os.path.exists(path):
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict)
 else:
-    print()
+    print("Missing Trained model at {path}")
     #raise FileNotFoundError(f"Missing Trained model at {path}")
 
 if torch.cuda.device_count() > 1:
