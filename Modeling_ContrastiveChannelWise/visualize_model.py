@@ -79,12 +79,20 @@ def visualize_integrated_gradients_all_channels(model, eeg_batch, channel_names,
 
         was_training = base_model.training
         base_model.train()
+        # cuDNN RNN backward requires encoders to be in training mode regardless of freeze state
+        for enc in base_model.encoders:
+            enc.train()
 
         # compute IG attributions
         attributions, _ = ig.attribute(inputs=x, baselines=baseline, n_steps=128, return_convergence_delta=True)
 
         if not was_training:
             base_model.eval()
+        else:
+            # restore encoder eval mode if they were frozen
+            for enc in base_model.encoders:
+                if not base_model.unlock_encoders:
+                    enc.eval()
 
         attr = attributions.squeeze().detach().cpu().numpy()
 

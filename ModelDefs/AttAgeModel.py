@@ -15,6 +15,7 @@ class AgeModel(nn.Module):
                  unlock_encoders=True,
                  config_file='../config.json'):
         super(AgeModel, self).__init__()
+        self.unlock_encoders = unlock_encoders
 
         with open(hyperparam_config, "r") as f:
             hyperparam_config_dict = json.load(f)
@@ -95,8 +96,16 @@ class AgeModel(nn.Module):
         self.a = nn.SiLU() #GELU()
         self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, 512)
         self.fc2 = nn.Linear(512, 256)
-        self.d = nn.Dropout(0.05)
+        self.d = nn.Dropout(0.35)
         self.output = nn.Linear(256, 1)  # Regression output
+
+    def train(self, mode=True):
+        super().train(mode)
+        if not self.unlock_encoders:
+            # Frozen encoders: keep BN in eval mode to preserve pretrained running stats
+            for enc in self.encoders:
+                enc.eval()
+        return self
 
     def forward(self, x):
         # x: [batch, seq_len, 14]

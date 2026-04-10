@@ -2,14 +2,11 @@ import json
 import os
 import random
 import sys
-
 import numpy as np
-import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
-from sympy import true
 from torch import nn, optim
-from torch.amp import autocast
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader, random_split, WeightedRandomSampler
 from tqdm import tqdm
 import wandb
@@ -24,8 +21,8 @@ with open("../config.json", "r") as f:
 channel_order = config["EEG_columns"]
 
 BATCH_SIZE = 5000
-LR = 1e-4
-num_epochs = 1000
+LR = 1e-5
+num_epochs = 30
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ROOT_DIR = "../results/EEG_LSTM_windows/"
 PKL_PATH = "eeg_window_index.pkl"
@@ -90,8 +87,20 @@ if torch.cuda.device_count() > 1:
     model = nn.DataParallel(model, device_ids=[0, 1])
 
 model = model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=LR)
+base_model = model.module if isinstance(model, nn.DataParallel) else model
+if base_model.unlock_encoders:
+    optimizer = optim.Adam([
+        {'params': base_model.encoders.parameters(),          'lr': LR * 0.01},
+        {'params': base_model.channel_projectors.parameters(),'lr': LR},
+        {'params': base_model.attention.parameters(),         'lr': LR},
+        {'params': base_model.fc1.parameters(),               'lr': LR},
+        {'params': base_model.fc2.parameters(),               'lr': LR},
+        {'params': base_model.output.parameters(),            'lr': LR},
+    ])
+else:
+    optimizer = optim.Adam(model.parameters(), lr=LR)
 criteria = nn.SmoothL1Loss(reduction='mean')
+scaler = GradScaler(device="cuda")
 
 wandb.init(
     project="BrainAge",
@@ -115,9 +124,11 @@ for epoch in tqdm(range(1, num_epochs + 1)):
         with autocast(device_type="cuda"):
             y_pred, att = model(x)
             loss = criteria(y, y_pred)
-        loss.backward()
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
         total_train_loss += loss.item()
     total_train_loss /= len(train_loader)
 
