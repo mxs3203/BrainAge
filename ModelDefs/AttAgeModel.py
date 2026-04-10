@@ -33,14 +33,14 @@ class AgeModel(nn.Module):
             hidden_size = hyperparams['hidden_size']
             num_layers_gru = hyperparams['num_layers_gru']
             projection_size = hyperparams['projection_size']
+            cnn_dropout = hyperparams['CNN_dropout']
+            rnn_dropout = hyperparams['RNN_dropout']
+            activation = hyperparams['activation_function']
+            rnn_type = hyperparams['rnn_type']
             kernel_size = hyperparams['kernel_size']
             stride = hyperparams['stride']
             padding = hyperparams['padding']
-            channels = hyperparams['channels']
-            cnn_dropout = hyperparams['cnn_dropout']
-            rnn_dropout = hyperparams['rnn_dropout']
-            activation = hyperparams['activation_function']
-            rnn_type = hyperparams['rnn_type']
+            channels = hyperparams['Conv1DChannels']
 
             model = EEGConvGRUEncoder(
                 gru_hidden=hidden_size,
