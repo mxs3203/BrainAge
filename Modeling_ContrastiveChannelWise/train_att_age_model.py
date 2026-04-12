@@ -20,9 +20,7 @@ with open("../config.json", "r") as f:
     config = json.load(f)
 channel_order = config["EEG_columns"]
 
-BATCH_SIZE = 5000
-LR = 1e-5
-num_epochs = 30
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ROOT_DIR = "../results/EEG_LSTM_windows/"
 PKL_PATH = "eeg_window_index.pkl"
@@ -47,6 +45,19 @@ sampler = WeightedRandomSampler(
     replacement=True
 )
 
+#####################################
+BATCH_SIZE = 5000
+LR = 1e-4
+num_epochs = 50
+att_heads = 1
+common_dim = 14
+fc1_dim = 32
+fc2_dim = 32
+activation = "SiLU"
+UNLOCK_ENCODERS = False
+DROPOUT = 0.05
+#####################################
+
 train_loader = DataLoader(
     train_dataset,
     batch_size=BATCH_SIZE,
@@ -65,7 +76,13 @@ val_loader = DataLoader(
     persistent_workers=True
 )
 
-model = AgeModel(attention_heads=1, common_dim=32, unlock_encoders=False, hyperparam_config="lets_try_simple_hyperparam_config.json")
+
+
+model = AgeModel(attention_heads=att_heads, common_dim=common_dim,
+                 fc1_dim=fc1_dim, fc2_dim=fc2_dim, activation=activation,
+                 unlock_encoders=UNLOCK_ENCODERS,
+                 dropout=DROPOUT,
+                 hyperparam_config="lets_try_simple_hyperparam_config.json")
 path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
 print(path)
 if os.path.exists(path):
@@ -105,12 +122,15 @@ scaler = GradScaler(device="cuda")
 wandb.init(
     project="BrainAge",
     entity="mxs3203",
-#    resume="allow",
-#    id="toasty-thunder-4765",
     config={
         "batch_size": train_loader.batch_size,
         "learning_rate": LR,
-        "random_seed": random.Random(random.randrange(sys.maxsize))
+        "att_heads": att_heads,
+        "fc1_dim": fc1_dim,
+        "fc2_dim": fc2_dim,
+        "activation": activation,
+        "dropout": DROPOUT,
+        "unlock_encoders": UNLOCK_ENCODERS,
     }
 )
 for epoch in tqdm(range(1, num_epochs + 1)):
@@ -126,7 +146,7 @@ for epoch in tqdm(range(1, num_epochs + 1)):
             loss = criteria(y, y_pred)
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         scaler.step(optimizer)
         scaler.update()
         total_train_loss += loss.item()

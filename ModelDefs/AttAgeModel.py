@@ -10,6 +10,10 @@ from ModelDefs.ChannelEncoderCNVGRU import EEGConvGRUEncoder
 class AgeModel(nn.Module):
     def __init__(self, attention_heads=1,
                  common_dim=32,
+                 dropout=0.05,
+                 fc1_dim=64,
+                 fc2_dim=128,
+                 activation="SiLU",
                  pretrained_dir="ContrastiveModel_chkpoints",
                  hyperparam_config="../FindOptimalProbForAugmentation/contrastive_hyperparams.json",
                  unlock_encoders=True,
@@ -93,11 +97,12 @@ class AgeModel(nn.Module):
         self.attention = nn.MultiheadAttention(embed_dim=common_dim, num_heads=attention_heads, batch_first=True)
 
         # Dense layers
-        self.a = nn.SiLU() #GELU()
-        self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.d = nn.Dropout(0.35)
-        self.output = nn.Linear(256, 1)  # Regression output
+        acts = {"SiLU": nn.SiLU(), "GELU": nn.GELU(), "ReLU": nn.ReLU()}
+        self.a = acts[activation]
+        self.fc1 = nn.Linear(len(self.eeg_columns) * common_dim, fc1_dim)
+        self.fc2 = nn.Linear(fc1_dim, fc2_dim)
+        self.d = nn.Dropout(dropout)
+        self.output = nn.Linear(fc2_dim, 1)  # Regression output
 
     def train(self, mode=True):
         super().train(mode)
@@ -141,12 +146,12 @@ class AgeModel(nn.Module):
         # Apply self-attention across channels
         attn_output, attn_weights = self.attention(
             channel_features, channel_features, channel_features,
-            need_weights=True, average_attn_weights=True
+            need_weights=True, average_attn_weights=False
         )
 
         # Flatten and pass through dense layers
         out = attn_output.reshape(attn_output.size(0), -1)
-        out = self.a(self.fc1(out))
+        out = self.d(self.a(self.fc1(out)))
         out = self.a(self.fc2(out))
         out = self.output(out)
         return out.squeeze(1), attn_weights
