@@ -47,14 +47,14 @@ sampler = WeightedRandomSampler(
 
 #####################################
 BATCH_SIZE = 5000
-LR = 1e-4
+LR = 1e-5
 num_epochs = 50
 att_heads = 1
-common_dim = 14
+common_dim = 16
 fc1_dim = 32
 fc2_dim = 32
-activation = "SiLU"
-UNLOCK_ENCODERS = False
+activation = "RELU"
+UNLOCK_ENCODERS = True
 DROPOUT = 0.05
 #####################################
 
