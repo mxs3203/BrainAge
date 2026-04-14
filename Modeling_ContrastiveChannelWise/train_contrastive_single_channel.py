@@ -28,7 +28,7 @@ torch.backends.cudnn.benchmark = True
 def train_channel(channel_idx, channel_name):
     os.makedirs("ContrastiveModel_chkpoints", exist_ok=True)
 
-    with open("lets_try_simple_hyperparam_config.json", "r") as f:
+    with open("contrastive_hyperparams.json", "r") as f:
         config = json.load(f)
     hyperparams = config[channel_name]
     LR = 1e-3
@@ -41,7 +41,7 @@ def train_channel(channel_idx, channel_name):
     rnn_type = hyperparams['rnn_type']
     num_epochs = 200
     TEMP = hyperparams['temp']
-    BATCH_SIZE = 256
+    BATCH_SIZE = 512
 
     kernel_size = hyperparams['kernel_size']
     stride = hyperparams['stride']
@@ -51,7 +51,7 @@ def train_channel(channel_idx, channel_name):
     dataset = SupervisedContrastiveLearningDataset(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
-        subset_fraction=0.5,
+        subset_fraction=0.8,
         preload=True
     )
 
@@ -191,7 +191,7 @@ def main():
                              "Omit to train all channels on a single GPU.")
     args = parser.parse_args()
 
-    skip = {'EEG.AF3', 'EEG.F7'}
+    skip = {}
 
     if args.channels is not None:
         start, end = args.channels
