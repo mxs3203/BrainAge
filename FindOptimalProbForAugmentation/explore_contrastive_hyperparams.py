@@ -34,7 +34,7 @@ results_lock = threading.Lock()
 def train_channel(trial, channel_name, dataset):
     LR = 1e-3
     num_epochs = 20
-    TEMP = trial.suggest_categorical("temp", [0.1,0.2,0.3,0.4,0.5,0.6, 0.7,0.8,0.9])
+    TEMP = trial.suggest_categorical("temp", [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
     BATCH_SIZE = 512
 
     model_type = 'CONVGRU'
@@ -52,8 +52,8 @@ def train_channel(trial, channel_name, dataset):
 
     hidden_size = trial.suggest_int("hidden_size", 2, 20)
     num_layers_gru = trial.suggest_int("num_layers_gru", 1, 2)
-    rnn_dropout = trial.suggest_float("RNN_dropout", 0.05, 0.2)
-    cnn_dropout = trial.suggest_float("CNN_dropout", 0.05, 0.2)
+    rnn_dropout = trial.suggest_categorical("RNN_dropout", [0.01, 0.05,0.1,0.15, 0.2])
+    cnn_dropout = trial.suggest_categorical("CNN_dropout", [0.01, 0.05,0.1,0.15, 0.2])
     projection_size = trial.suggest_int("projection_size", 10, 20)
     activation = trial.suggest_categorical("activation_function", ['ReLU', 'GELU', 'SiLU'])
     rnn_type = trial.suggest_categorical("rnn_type", ['GRU'])
@@ -175,7 +175,7 @@ def train_channel(trial, channel_name, dataset):
     global results
     with results_lock:
         results = pd.concat([results, pd.DataFrame([trial_results])], ignore_index=True)
-        results.to_csv("contrastive_optuna_results.csv", index=False)
+        results.to_csv("contrastive_optuna_results{}.csv".format(channel_name), index=False)
 
     del model, augmentor, optimizer, scaler
     del train_loader, val_loader, train_set, val_set
