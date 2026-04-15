@@ -39,7 +39,7 @@ def train_channel(channel_idx, channel_name):
     rnn_dropout = hyperparams['RNN_dropout']
     activation = hyperparams['activation_function']
     rnn_type = hyperparams['rnn_type']
-    num_epochs = 200
+    num_epochs = 50
     TEMP = hyperparams['temp']
     BATCH_SIZE = 512
 
@@ -47,7 +47,7 @@ def train_channel(channel_idx, channel_name):
     stride = hyperparams['stride']
     padding = hyperparams['padding']
     channels = hyperparams['Conv1DChannels']
-
+    GS = hyperparams['Gaussian_sigma']
     dataset = SupervisedContrastiveLearningDataset(
         data_dir="../results/EEG_LSTM_windows/",
         channel_idx=channel_idx,
@@ -111,7 +111,7 @@ def train_channel(channel_idx, channel_name):
                 z1, _ = model(augmentor(x))
                 z2, _ = model(augmentor(x))
             loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
-                                               mode="gaussian", gaussian_sigma=5.0)
+                                               mode="gaussian", gaussian_sigma=GS)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
@@ -129,7 +129,7 @@ def train_channel(channel_idx, channel_name):
                     z1, _ = model(augmentor(x))
                     z2, _ = model(augmentor(x))
                 loss = supervised_contrastive_loss(z1.float(), z2.float(), ages=ages, temperature=TEMP,
-                                                   mode="gaussian", gaussian_sigma=5.0)
+                                                   mode="gaussian", gaussian_sigma=GS)
                 total_val_loss += loss.item()
                 alignments.append(alignment(z1, z2).item())
                 uniformities.append(uniformity(torch.cat([z1, z2], dim=0)).item())
@@ -176,7 +176,7 @@ def train_channel(channel_idx, channel_name):
             "Val/Score": score,
             "Val/EmbStd_min": torch.cat([z1, z2], dim=0).std(dim=0).min().item()
         })
-        if epoch >= 50 and epoch % 10 == 0:
+        if epoch >= 20 and epoch % 10 == 0:
             torch.save(model.state_dict(),
                        "ContrastiveModel_chkpoints/EEGContrsative_forCH_{}_Epoch{}.pth".format(channel_name, epoch))
 
