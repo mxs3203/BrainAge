@@ -46,16 +46,19 @@ sampler = WeightedRandomSampler(
 )
 
 #####################################
-BATCH_SIZE = 5000
-LR = 1e-5
-num_epochs = 50
-att_heads = 1
-common_dim = 16
-fc1_dim = 32
-fc2_dim = 32
-activation = "RELU"
-UNLOCK_ENCODERS = True
-DROPOUT = 0.05
+
+BATCH_SIZE = 256
+LR = 1e-6
+num_epochs = 100
+att_heads = 4
+common_dim = 32
+fc1_dim = 16
+fc2_dim = 16
+activation = "SiLU"
+UNLOCK_ENCODERS = False
+DROPOUT = 0.20
+AUTCAST = True
+GRAD_SCALE = False
 #####################################
 
 train_loader = DataLoader(
@@ -82,7 +85,7 @@ model = AgeModel(attention_heads=att_heads, common_dim=common_dim,
                  fc1_dim=fc1_dim, fc2_dim=fc2_dim, activation=activation,
                  unlock_encoders=UNLOCK_ENCODERS,
                  dropout=DROPOUT,
-                 hyperparam_config="lets_try_simple_hyperparam_config.json")
+                 hyperparam_config="contrastive_hyperparams.json")
 path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
 print(path)
 if os.path.exists(path):
@@ -118,6 +121,7 @@ else:
     optimizer = optim.Adam(model.parameters(), lr=LR)
 criteria = nn.SmoothL1Loss(reduction='mean')
 scaler = GradScaler(device="cuda")
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=1e-7)
 
 wandb.init(
     project="BrainAge",
@@ -126,11 +130,14 @@ wandb.init(
         "batch_size": train_loader.batch_size,
         "learning_rate": LR,
         "att_heads": att_heads,
+        "CommonDim": common_dim,
         "fc1_dim": fc1_dim,
         "fc2_dim": fc2_dim,
         "activation": activation,
         "dropout": DROPOUT,
         "unlock_encoders": UNLOCK_ENCODERS,
+        "batch_size_per_gpu": BATCH_SIZE,
+        "GradScale": GRAD_SCALE
     }
 )
 for epoch in tqdm(range(1, num_epochs + 1)):
@@ -144,11 +151,15 @@ for epoch in tqdm(range(1, num_epochs + 1)):
         with autocast(device_type="cuda"):
             y_pred, att = model(x)
             loss = criteria(y, y_pred)
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        scaler.step(optimizer)
-        scaler.update()
+        if GRAD_SCALE:
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
         total_train_loss += loss.item()
     total_train_loss /= len(train_loader)
 
@@ -165,10 +176,13 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     sample_idx = np.random.randint(0, np.shape(x)[0])  # random window
     fig = visualize_all_channels(model,x, channel_order, sample_idx=sample_idx)
     fig2 = visualize_integrated_gradients_all_channels(model, x, channel_order, sample_idx=sample_idx)
+    current_lr = scheduler.get_last_lr()[0]
+    scheduler.step()
     wandb.log({
         "Epoch": epoch,
         "Train/Loss": total_train_loss,
         "Val/Loss": total_val_loss,
+        "LR": current_lr,
         "Conv Activations": wandb.Image(fig),
         "Integrated Gradients": wandb.Image(fig2)
     })

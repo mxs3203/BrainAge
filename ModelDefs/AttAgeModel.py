@@ -84,7 +84,7 @@ class AgeModel(nn.Module):
             self.encoders.append(model)
             self.channel_projectors.append(
                 nn.Sequential(
-                    nn.Linear(hidden_size, common_dim, bias=False),
+                    nn.Linear(projection_size, common_dim, bias=False),
                     nn.LayerNorm(common_dim)
                 )
             )
@@ -118,7 +118,7 @@ class AgeModel(nn.Module):
         # Apply each pretrained encoder to its respective channel
         for i in range(len(self.eeg_columns)):
             channel_input = x[:, :, i].unsqueeze(-1)  # [batch, seq_len, 1]
-            projection,f = self.encoders[i](channel_input)
+            projection, f = self.encoders[i](channel_input)
             # Ensure encoder output is [B, D]
             if f.dim() == 3:
                 if f.size(1) == 1:
@@ -126,7 +126,7 @@ class AgeModel(nn.Module):
                 elif f.size(-1) == 1:
                     f = f.squeeze(-1)
 
-            f = self.channel_projectors[i](f)
+            f = self.channel_projectors[i](projection)
 
             # Ensure projected output is [B, common_dim]
             if f.dim() == 3:

@@ -1,9 +1,6 @@
 import json
-import os
-import numpy as np
 import torch
 import optuna
-from functools import partial
 from torch import nn, optim
 from torch.amp import autocast
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -19,14 +16,15 @@ from utils.weighted_sampling_age import (
 with open("../config.json", "r") as f:
     config = json.load(f)
 
-BATCH_SIZE  = 5000
-NUM_EPOCHS  = 10
-NUM_TRIALS  = 100
-ROOT_DIR    = "../results/EEG_LSTM_windows/"
-PKL_PATH    = "eeg_window_index.pkl"
-STORAGE     = "sqlite:///age_model_optuna.db"
-STUDY_NAME  = "AgeModel_hyperparam_search"
-DEVICE      = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+BATCH_SIZE       = 2048
+NUM_EPOCHS       = 10
+NUM_TRIALS       = 100
+SEED             = 27
+ROOT_DIR         = "../results/EEG_LSTM_windows/"
+PKL_PATH         = "eeg_window_index.pkl"
+STORAGE          = "sqlite:///age_model_optuna.db"
+STUDY_NAME       = "AgeModel_hyperparam_search"
+DEVICE           = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Valid (common_dim, attention_heads) pairs — dim must be divisible by heads
 DIM_HEAD_COMBOS = [
@@ -40,36 +38,39 @@ DIM_HEAD_COMBOS = [
 # ---------------------------------------------------------------------------
 index_df = load_or_create_index(ROOT_DIR, PKL_PATH)
 index_df["age_bin"] = index_df["Age"].apply(age_to_bin)
-train_index_df, val_index_df = split_index_by_participant(index_df)
+train_index_df, val_index_df = split_index_by_participant(index_df, n_participants=30)
 train_weights = compute_sample_weights(train_index_df)
 train_index_df["sample_weight"] = train_weights
 
 train_dataset = EEGIndexedDataset(train_index_df, channels="all", target="Age", transform=None)
 val_dataset   = EEGIndexedDataset(val_index_df,   channels="all", target="Age", transform=None)
 
-sampler = WeightedRandomSampler(
-    weights=torch.DoubleTensor(train_index_df["sample_weight"].values),
-    num_samples=len(train_index_df),
-    replacement=True
-)
-
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler,
-                          pin_memory=True, num_workers=20, persistent_workers=True)
-val_loader   = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False,
-                          pin_memory=True, num_workers=20, persistent_workers=True)
-
 
 # ---------------------------------------------------------------------------
 # Objective
 # ---------------------------------------------------------------------------
 def objective(trial):
+    # Each trial gets its own DataLoaders — required for n_jobs > 1 (shared
+    # loaders with persistent_workers are not safe across concurrent threads)
+    sampler = WeightedRandomSampler(
+        weights=torch.DoubleTensor(train_index_df["sample_weight"].values),
+        num_samples=len(train_index_df),
+        replacement=True,
+        generator=torch.Generator().manual_seed(SEED)
+    )
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler,
+                              pin_memory=True, num_workers=8, persistent_workers=True,
+                              worker_init_fn=lambda wid: torch.manual_seed(SEED + wid))
+    val_loader   = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False,
+                              pin_memory=True, num_workers=8, persistent_workers=True,
+                              worker_init_fn=lambda wid: torch.manual_seed(SEED + wid))
     combo           = trial.suggest_categorical("dim_heads", DIM_HEAD_COMBOS)
     common_dim, attention_heads = map(int, combo.split("_"))
     fc1_dim         = trial.suggest_categorical("fc1_dim", [16, 32, 64, 128, 256, 512])
     fc2_dim         = trial.suggest_categorical("fc2_dim", [16, 32, 64, 128, 256, 512])
     unlock_encoders = trial.suggest_categorical("unlock_encoders", [False])
     dropout         = trial.suggest_float("dropout", 0.01, 0.3)
-    lr              = 1e-5
+    lr              = 1e-6
     activation      = trial.suggest_categorical("activation", ["SiLU", "GELU", "ReLU"])
 
     model = AgeModel(
@@ -80,7 +81,7 @@ def objective(trial):
         fc2_dim=fc2_dim,
         activation=activation,
         unlock_encoders=unlock_encoders,
-        hyperparam_config="lets_try_simple_hyperparam_config.json"
+        hyperparam_config="contrastive_hyperparams.json"
     ).to(DEVICE)
 
     if unlock_encoders:
@@ -164,7 +165,7 @@ def main():
     print(f"Completed trials: {completed} / {NUM_TRIALS}. Running {remaining} more.")
 
     if remaining > 0:
-        study.optimize(objective, n_trials=remaining, n_jobs=1)
+        study.optimize(objective, n_trials=remaining, n_jobs=10)
 
     print("\n=== Best trial ===")
     best = study.best_trial

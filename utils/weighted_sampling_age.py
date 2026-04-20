@@ -40,7 +40,8 @@ def build_eeg_index(root_dir, output_csv=None, output_pkl=None):
 
     return df
 
-def split_index_by_participant(index_df, test_size=0.2, random_state=None):
+def split_index_by_participant(index_df, test_size=0.2, random_state=42,
+                               n_participants=None):
     participant_df = (
         index_df
         .dropna(subset=["ID", "Age", "age_bin"])
@@ -51,7 +52,17 @@ def split_index_by_participant(index_df, test_size=0.2, random_state=None):
         })
     )
 
-    #participant_df.sample(n=10, random_state=random_state)
+    if n_participants is not None:
+        bins = participant_df["age_bin"].unique()
+        n_per_bin = n_participants // len(bins)
+        remainder = n_participants % len(bins)
+        sampled = []
+        for i, b in enumerate(sorted(bins)):
+            bin_df = participant_df[participant_df["age_bin"] == b]
+            # give remainder slots to first bins so total == n_participants exactly
+            k = min(n_per_bin + (1 if i < remainder else 0), len(bin_df))
+            sampled.append(bin_df.sample(n=k, random_state=random_state))
+        participant_df = pd.concat(sampled).reset_index(drop=True)
 
     train_ids, val_ids = train_test_split(
         participant_df['ID'],
