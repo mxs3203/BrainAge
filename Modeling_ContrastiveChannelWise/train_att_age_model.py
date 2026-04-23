@@ -47,16 +47,16 @@ sampler = WeightedRandomSampler(
 
 #####################################
 
-BATCH_SIZE = 256
-LR = 1e-6
+BATCH_SIZE = 128
+LR = 0.6e-6
 num_epochs = 100
-att_heads = 4
-common_dim = 32
-fc1_dim = 16
-fc2_dim = 16
+att_heads = 2
+common_dim = 16
+fc1_dim = 512
+fc2_dim = 512
 activation = "SiLU"
-UNLOCK_ENCODERS = False
-DROPOUT = 0.20
+UNLOCK_ENCODERS = True
+DROPOUT = 0.1
 AUTCAST = True
 GRAD_SCALE = False
 #####################################
@@ -121,7 +121,7 @@ else:
     optimizer = optim.Adam(model.parameters(), lr=LR)
 criteria = nn.SmoothL1Loss(reduction='mean')
 scaler = GradScaler(device="cuda")
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50, eta_min=1e-7)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.95)#, T_max=100, eta_min=1e-8)
 
 wandb.init(
     project="BrainAge",
@@ -189,6 +189,6 @@ for epoch in tqdm(range(1, num_epochs + 1)):
     plt.close(fig)
     plt.close(fig2)
     if epoch % 1 == 0:
-        torch.save(model.state_dict(), "ContrastiveModel_chkpoints/FullModel_Epoch{}.pth".format(epoch))
+        torch.save(model.state_dict(), "ContrastiveModel_chkpoints/FullModel_Epoch_v4_{}.pth".format(epoch))
 
 wandb.finish()
