@@ -13,7 +13,7 @@ from ModelDefs.AttAgeModel import AgeModel
 from utils.weighted_sampling_age import load_or_create_index, age_to_bin
 
 # ── Config ──────────────────────────────────────────────────────────────────
-CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_15.pth"
+CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_35.pth"
 ROOT_DIR     = "../results/EEG_LSTM_windows/"
 PKL_PATH     = "eeg_window_index.pkl"
 OUTPUT_CSV   = "results.csv"
