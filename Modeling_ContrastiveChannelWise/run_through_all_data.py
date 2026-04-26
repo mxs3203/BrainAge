@@ -13,12 +13,15 @@ from ModelDefs.AttAgeModel import AgeModel
 from utils.weighted_sampling_age import load_or_create_index, age_to_bin
 
 # ── Config ──────────────────────────────────────────────────────────────────
-CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_35.pth"
+CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_46.pth"
 ROOT_DIR     = "../results/EEG_LSTM_windows/"
 PKL_PATH     = "eeg_window_index.pkl"
 OUTPUT_CSV   = "results.csv"
 BATCH_SIZE   = 12000
 NUM_WORKERS  = 32
+
+TRAIN_INDEX_CSV = "eeg_window_index_train.csv"
+VAL_INDEX_CSV   = "eeg_window_index_val.csv"
 
 # Model hyperparams (must match the checkpoint)
 ATT_HEADS  = 2
@@ -71,6 +74,9 @@ def collate_fn(batch):
 print("Loading index …")
 index_df = load_or_create_index(ROOT_DIR, PKL_PATH)
 index_df["age_bin"] = index_df["Age"].apply(age_to_bin)
+
+train_ids = pd.read_csv(TRAIN_INDEX_CSV)["ID"].unique() if os.path.exists(TRAIN_INDEX_CSV) else None
+val_ids   = pd.read_csv(VAL_INDEX_CSV)["ID"].unique()   if os.path.exists(VAL_INDEX_CSV)   else None
 print(f"  Total windows: {len(index_df):,}")
 
 dataset    = EEGInferenceDataset(index_df)
@@ -132,13 +138,19 @@ results_df = pd.DataFrame(records)
 results_df.to_csv(OUTPUT_CSV, index=False)
 print(f"\nSaved {len(results_df):,} predictions → {OUTPUT_CSV}")
 
-# Quick summary
-err = results_df["predicted_age"] - results_df["true_age"]
-results_df["abs_error"] = err.abs()
+def print_metrics(label, df):
+    err = df["predicted_age"] - df["true_age"]
+    huber = err.abs().apply(lambda e: 0.5 * e**2 if e < 1.0 else e - 0.5)
+    n_participants = df["ID"].nunique()
+    print(f"\n── {label} ({n_participants} participants, {len(df):,} windows) ──")
+    print(f"  SmoothL1 (= WandB metric) = {huber.mean():.4f}")
+    print(f"  MAE                       = {err.abs().mean():.3f} years")
+    print(f"  RMSE                      = {((err**2).mean())**0.5:.3f} years")
 
-# SmoothL1 (Huber, beta=1) — same metric as training, directly comparable to WandB
-huber = err.abs().apply(lambda e: 0.5 * e**2 if e < 1.0 else e - 0.5)
+print_metrics("ALL DATA", results_df)
 
-print(f"SmoothL1 (= WandB metric) = {huber.mean():.4f}")
-print(f"MAE                       = {err.abs().mean():.3f} years")
-print(f"RMSE                      = {((err**2).mean())**0.5:.3f} years")
+if train_ids is not None:
+    print_metrics("TRAIN participants", results_df[results_df["ID"].isin(train_ids)])
+
+if val_ids is not None:
+    print_metrics("VAL participants  ", results_df[results_df["ID"].isin(val_ids)])

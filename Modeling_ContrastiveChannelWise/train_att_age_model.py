@@ -120,6 +120,7 @@ if base_model.unlock_encoders:
 else:
     optimizer = optim.Adam(model.parameters(), lr=LR)
 criteria = nn.SmoothL1Loss(reduction='mean')
+mae_fn   = nn.L1Loss(reduction='mean')
 scaler = GradScaler(device="cuda")
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,gamma=0.95)#, T_max=100, eta_min=1e-8)
 
@@ -142,15 +143,16 @@ wandb.init(
 )
 for epoch in tqdm(range(1, num_epochs + 1)):
     model.train()
-    total_train_loss = 0
-    #dataset.refresh_subset()
+    total_train_loss = 0.0
+    total_train_samples = 0
+    total_train_mae = 0.0
 
     for i, (x, y) in enumerate(train_loader):
         x, y = x.to(device), y.to(device)
         optimizer.zero_grad()
         with autocast(device_type="cuda"):
             y_pred, att = model(x)
-            loss = criteria(y, y_pred)
+            loss = criteria(y_pred, y)
         if GRAD_SCALE:
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -160,28 +162,41 @@ for epoch in tqdm(range(1, num_epochs + 1)):
         else:
             loss.backward()
             optimizer.step()
-        total_train_loss += loss.item()
-    total_train_loss /= len(train_loader)
+        n = x.size(0)
+        total_train_loss += loss.item() * n
+        total_train_mae += mae_fn(y_pred.detach(), y).item() * n
+        total_train_samples += n
+    epoch_train_loss = total_train_loss / total_train_samples
+    epoch_train_mae = total_train_mae / total_train_samples
 
     # Validation
     model.eval()
-    total_val_loss = 0
+    total_val_loss = 0.0
+    total_val_samples = 0
+    total_val_mae = 0.0
     with torch.no_grad():
         for i, (x, y) in enumerate(val_loader):
-            x,y = x.to(device), y.to(device)
-            y_pred,att = model(x)
-            loss = criteria(y, y_pred)
-            total_val_loss += loss.item()
-    total_val_loss /= len(val_loader)
+            x, y = x.to(device), y.to(device)
+            y_pred, att = model(x)
+            loss = criteria(y_pred, y)
+            n = x.size(0)
+            total_val_loss += loss.item() * n
+            total_val_mae += mae_fn(y_pred, y).item() * n
+            total_val_samples += n
+    epoch_val_loss = total_val_loss / total_val_samples
+    epoch_val_mae = total_val_mae / total_val_samples
+
     sample_idx = np.random.randint(0, np.shape(x)[0])  # random window
-    fig = visualize_all_channels(model,x, channel_order, sample_idx=sample_idx)
+    fig = visualize_all_channels(model, x, channel_order, sample_idx=sample_idx)
     fig2 = visualize_integrated_gradients_all_channels(model, x, channel_order, sample_idx=sample_idx)
     current_lr = scheduler.get_last_lr()[0]
     scheduler.step()
     wandb.log({
         "Epoch": epoch,
-        "Train/Loss": total_train_loss,
-        "Val/Loss": total_val_loss,
+        "Train/Loss": epoch_train_loss,
+        "Train/MAE": epoch_train_mae,
+        "Val/Loss": epoch_val_loss,
+        "Val/MAE": epoch_val_mae,
         "LR": current_lr,
         "Conv Activations": wandb.Image(fig),
         "Integrated Gradients": wandb.Image(fig2)
