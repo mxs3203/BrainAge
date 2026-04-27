@@ -7,6 +7,7 @@ class EEGConvGRUEncoder(nn.Module):
                  num_layers_gru=1,gru_hidden=12, embedding_dim=64,
                  kernel_size=7, stride=2, padding=1, conv_channels=32, cnn_dropout=0.0,
                  activation="ReLU", rnn_dropout=0.0, rnn_type="GRU",
+                 track_running_stats=True,
                  ):
         super().__init__()
         if activation == "ReLU":
@@ -20,7 +21,7 @@ class EEGConvGRUEncoder(nn.Module):
         # --- Convolutional feature extractor ---
         self.conv = nn.Sequential(
             nn.Conv1d(input_channels, conv_channels, kernel_size=kernel_size, stride=stride, padding=padding),  # [B, 32, L/2]
-            nn.BatchNorm1d(conv_channels),
+            nn.BatchNorm1d(conv_channels, track_running_stats=track_running_stats),
             self.activation,
             nn.Dropout1d(p=cnn_dropout)
 
