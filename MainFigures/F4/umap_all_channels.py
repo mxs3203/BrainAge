@@ -299,7 +299,7 @@ def make_s6(cache):
 
 
 # ── Main Figure F4 ───────────────────────────────────────────────────────────
-MAIN_CHANNELS = ["EEG.F4", "EEG.AF4"]   # channels shown as example UMAPs in main figure
+MAIN_CHANNELS = ["EEG.T7", "EEG.P8"]   # channels shown as example UMAPs in main figure
 
 
 def make_f4(cache):
@@ -310,10 +310,10 @@ def make_f4(cache):
     age_all = np.concatenate([cache[ch]["ages"] for ch in CHANNELS])
     vmin, vmax = np.percentile(age_all, 2), np.percentile(age_all, 98)
 
-    fig = plt.figure(figsize=(14, 11))
+    fig = plt.figure(figsize=(15, 11))
     gs  = gridspec.GridSpec(2, 3, figure=fig,
                             hspace=0.38, wspace=0.32,
-                            height_ratios=[1.1, 0.9])
+                            height_ratios=[1.5, 0.9])
 
     # ── Top row: 2 UMAPs ─────────────────────────────────────────────────────
     for col, ch_name in enumerate(best2):
@@ -419,14 +419,12 @@ def make_f4(cache):
     ax_r.grid(axis="x", linewidth=0.4, alpha=0.5, zorder=0)
     ax_r.set_axisbelow(True)
 
-    # Region legend
+    # Region legend — placed inside panel D so it doesn't affect layout
     handles = [plt.Line2D([0], [0], marker="s", color="w",
                            markerfacecolor=c, markersize=9, label=r)
                for r, c in REGION_PALETTE.items()]
-    fig.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.01, -0.01),
-               frameon=True, fontsize=8, title="Region", title_fontsize=8,
-               ncol=4)
-
+    ax_mae.legend(handles=handles, loc="upper right", frameon=True,
+                  fontsize=8, title="Region", title_fontsize=8)
     return fig, best2
 
 

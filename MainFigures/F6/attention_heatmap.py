@@ -1,13 +1,15 @@
 """
-Figure 6 — Cross-channel attention weights by age group and stimulus.
+attention_heatmap.py
+====================
+Runs the full dataset through the AgeModel once, collects MultiheadAttention
+weights [B, num_heads, 14, 14], and saves three cache files:
+  attention_cache_3bin.pkl
+  attention_cache_4bin.pkl
+  attention_cache_5bin.pkl
 
-Runs the full dataset through the AgeModel, collects the MultiheadAttention
-weights [B, num_heads, 14, 14], and accumulates per-stimulus × age-group means.
-Results are cached to ATT_CACHE so the forward pass only runs once.
-
-Visualisation: for each stimulus one figure with rows = age groups,
-columns = attention heads, showing the 14×14 channel-channel heatmap.
-A summary figure averages over stimuli.
+Each cache: (stimulus, bin_idx, head_idx) -> mean [14,14] attention matrix.
+The raw accumulator (keyed by exact age) is also saved as attention_cache_raw.pkl
+so re-binning is instant without re-running the model.
 """
 import os
 import sys
@@ -17,14 +19,8 @@ import json
 import numpy as np
 import pandas as pd
 import torch
-from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import seaborn as sns
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _BRAINAGE    = os.path.abspath(os.path.join(_SCRIPT_DIR, "..", ".."))
@@ -39,10 +35,18 @@ from utils.weighted_sampling_age import load_or_create_index, age_to_bin
 CHECKPOINT  = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_46_bn_calibrated.pth"
 ROOT_DIR    = "../results/EEG_LSTM_windows/"
 PKL_PATH    = "eeg_window_index.pkl"
-ATT_CACHE   = os.path.join(_SCRIPT_DIR, "attention_cache.pkl")
+ATT_CACHE   = os.path.join(_SCRIPT_DIR, "attention_cache.pkl")          # legacy name (unused)
+RAW_CACHE   = os.path.join(_SCRIPT_DIR, "attention_cache_raw.pkl")       # per exact-age accumulator
+STIM_CSV    = os.path.join(_BRAINAGE, "stimuli_descriptions_and_expectations.csv")
 OUT_DIR     = _SCRIPT_DIR
 
-BATCH_SIZE  = 10000
+# Allowed stimuli: from CSV, excluding resting baselines
+_BASELINES    = {"eyesopen", "eyesclose"}
+_stim_df      = pd.read_csv(STIM_CSV)
+ALLOWED_STIMS = set(_stim_df["original_stimuli_name"]) - _BASELINES
+print(f"Allowed stimuli: {len(ALLOWED_STIMS)}  {sorted(ALLOWED_STIMS)}")
+
+BATCH_SIZE  = 9000
 NUM_WORKERS = 32
 
 ATT_HEADS   = 2
@@ -56,10 +60,16 @@ with open(os.path.join(_BRAINAGE, "config.json")) as f:
     CHANNELS = json.load(f)["EEG_columns"]
 CH_LABELS = [c.replace("EEG.", "") for c in CHANNELS]   # strip "EEG." prefix
 
-# Age group boundaries (years)
-AGE_GROUPS   = [(0, 30), (30, 50), (50, 200)]
-AGE_LABELS   = ["Young (<30)", "Middle (30–50)", "Older (>50)"]
-AGE_SHORT    = ["young", "middle", "old"]
+# Age binning configurations — one cache will be produced per config
+BIN_CONFIGS = {
+    3: [(0, 30), (30, 50), (50, 200)],
+    4: [(0, 27), (27, 34), (34, 45), (45, 200)],
+    5: [(0, 25), (25, 31), (31, 39), (39, 47), (47, 200)],
+}
+
+# Raw accumulator uses exact integer age — re-aggregated into bins at save time
+def age_to_int(age):
+    return int(age)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -96,231 +106,106 @@ def collate_fn(batch):
     return torch.stack(Xs), list(ages), list(stims)
 
 
-def age_group(age):
-    for i, (lo, hi) in enumerate(AGE_GROUPS):
+def assign_bin(age, groups):
+    for i, (lo, hi) in enumerate(groups):
         if lo <= age < hi:
             return i
-    return len(AGE_GROUPS) - 1
+    return len(groups) - 1
 
 
-# ── Collect or load cache ──────────────────────────────────────────────────────
+def aggregate_bins(raw_acc, groups):
+    """Merge raw (stim, age_int, head) accumulator into (stim, bin_idx, head) means."""
+    merged = {}
+    for (stm, age_int, h), (mat_sum, cnt) in raw_acc.items():
+        b = assign_bin(age_int, groups)
+        key = (stm, b, h)
+        if key not in merged:
+            merged[key] = [np.zeros((14, 14)), 0]
+        merged[key][0] += mat_sum
+        merged[key][1] += cnt
+    return {k: v[0] / v[1] for k, v in merged.items()}
+
+
+# ── Collect raw cache (keyed by exact age) then fan out to bin caches ─────────
 def collect_attention():
-    """Return dict: (stimulus, age_group_idx, head_idx) -> mean att matrix [14,14]."""
-    if os.path.exists(ATT_CACHE):
-        print(f"Loading cached attention weights from {ATT_CACHE} …")
-        with open(ATT_CACHE, "rb") as f:
-            return pickle.load(f)
+    """
+    1. Run forward pass once; accumulate by (stim, age_int, head).
+    2. Re-aggregate into 3-bin, 4-bin, 5-bin versions and save each.
+    Returns the 5-bin cache (default).
+    """
+    if os.path.exists(RAW_CACHE):
+        print(f"Loading raw cache from {RAW_CACHE} …")
+        with open(RAW_CACHE, "rb") as f:
+            raw_acc = pickle.load(f)
+    else:
+        print("No raw cache — running full dataset forward pass …")
 
-    print("No cache found — running full dataset forward pass …")
+        state_dict = torch.load(CHECKPOINT, map_location=DEVICE)
+        if any(k.startswith("module.") for k in state_dict):
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+        model = AgeModel(
+            attention_heads=ATT_HEADS, common_dim=COMMON_DIM,
+            fc1_dim=FC1_DIM, fc2_dim=FC2_DIM, activation=ACTIVATION,
+            dropout=DROPOUT, unlock_encoders=False,
+            hyperparam_config="contrastive_hyperparams.json",
+        )
+        model.load_state_dict(state_dict)
+        model = model.to(DEVICE).eval()
 
-    # Load model
-    state_dict = torch.load(CHECKPOINT, map_location=DEVICE)
-    if any(k.startswith("module.") for k in state_dict):
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-    model = AgeModel(
-        attention_heads=ATT_HEADS, common_dim=COMMON_DIM,
-        fc1_dim=FC1_DIM, fc2_dim=FC2_DIM, activation=ACTIVATION,
-        dropout=DROPOUT, unlock_encoders=False,
-        hyperparam_config="contrastive_hyperparams.json",
-    )
-    model.load_state_dict(state_dict)
-    model = model.to(DEVICE).eval()
+        index_df = load_or_create_index(ROOT_DIR, PKL_PATH)
+        loader = DataLoader(
+            EEGAttDataset(index_df),
+            batch_size=BATCH_SIZE, shuffle=False,
+            num_workers=NUM_WORKERS, pin_memory=True,
+            persistent_workers=True, collate_fn=collate_fn,
+        )
 
-    # Load dataset
-    index_df = load_or_create_index(ROOT_DIR, PKL_PATH)
-    loader = DataLoader(
-        EEGAttDataset(index_df),
-        batch_size=BATCH_SIZE, shuffle=False,
-        num_workers=NUM_WORKERS, pin_memory=True,
-        persistent_workers=True, collate_fn=collate_fn,
-    )
+        # Accumulate by exact integer age — no binning yet
+        raw_acc = {}   # (stim, age_int, head) -> [sum_matrix, count]
 
-    # Accumulators: (stim, age_grp, head) -> [sum_matrix, count]
-    acc = {}  # key -> [np.ndarray(14,14), int]
+        with torch.no_grad():
+            for X_batch, ages, stims in tqdm(loader, desc="Collecting attention"):
+                if X_batch is None:
+                    continue
+                X_batch = X_batch.to(DEVICE)
+                _, att = model(X_batch)
+                att_np = att.cpu().float().numpy()   # [B, heads, 14, 14]
 
-    with torch.no_grad():
-        for X_batch, ages, stims in tqdm(loader, desc="Collecting attention"):
-            if X_batch is None:
-                continue
-            X_batch = X_batch.to(DEVICE)
-            _, att = model(X_batch)
-            # att: [B, num_heads, 14, 14]  (average_attn_weights=False)
-            att_np = att.cpu().float().numpy()
+                for b in range(len(ages)):
+                    stm = stims[b]
+                    if stm not in ALLOWED_STIMS:
+                        continue
+                    age_int = age_to_int(ages[b])
+                    for h in range(ATT_HEADS):
+                        key = (stm, age_int, h)
+                        mat = att_np[b, h]
+                        if key not in raw_acc:
+                            raw_acc[key] = [np.zeros((14, 14)), 0]
+                        raw_acc[key][0] += mat
+                        raw_acc[key][1] += 1
 
-            for b in range(len(ages)):
-                ag  = age_group(ages[b])
-                stm = stims[b]
-                for h in range(ATT_HEADS):
-                    key = (stm, ag, h)
-                    mat = att_np[b, h]          # [14, 14]
-                    if key not in acc:
-                        acc[key] = [np.zeros((14, 14)), 0]
-                    acc[key][0] += mat
-                    acc[key][1] += 1
+        with open(RAW_CACHE, "wb") as f:
+            pickle.dump(raw_acc, f)
+        print(f"Saved raw cache → {RAW_CACHE}")
 
-    # Compute means
-    result = {k: v[0] / v[1] for k, v in acc.items()}
+    # Fan out to one cache per bin configuration
+    for n_bins, groups in BIN_CONFIGS.items():
+        out_path = os.path.join(_SCRIPT_DIR, f"attention_cache_{n_bins}bin.pkl")
+        result   = aggregate_bins(raw_acc, groups)
+        with open(out_path, "wb") as f:
+            pickle.dump(result, f)
+        stims_found = len({k[0] for k in result})
+        print(f"Saved {n_bins}-bin cache → {out_path}  "
+              f"({len(result)} keys, {stims_found} stimuli)")
 
-    os.makedirs(os.path.dirname(ATT_CACHE) or ".", exist_ok=True)
-    with open(ATT_CACHE, "wb") as f:
-        pickle.dump(result, f)
-    print(f"Saved attention cache → {ATT_CACHE}")
-    return result
-
-
-# ── Plotting helpers ───────────────────────────────────────────────────────────
-_CMAP = "viridis"
-
-def plot_heatmap(ax, mat, title, vmin, vmax, show_cbar=False):
-    im = ax.imshow(mat, cmap=_CMAP, vmin=vmin, vmax=vmax, aspect="auto")
-    ax.set_xticks(range(14))
-    ax.set_yticks(range(14))
-    ax.set_xticklabels(CH_LABELS, rotation=90, fontsize=7)
-    ax.set_yticklabels(CH_LABELS, fontsize=7)
-    ax.set_title(title, fontsize=9, fontweight="bold")
-    if show_cbar:
-        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    return im
-
-
-def make_stimulus_figure(att_dict, stim):
-    """One figure per stimulus: rows=age groups, cols=heads."""
-    n_groups = len(AGE_GROUPS)
-    fig, axes = plt.subplots(n_groups, ATT_HEADS,
-                             figsize=(5 * ATT_HEADS, 4.5 * n_groups),
-                             squeeze=False)
-    fig.suptitle(f"Cross-channel attention — {stim}", fontsize=12, fontweight="bold")
-
-    # Determine shared colour scale across all panels for this stimulus
-    all_vals = []
-    for ag in range(n_groups):
-        for h in range(ATT_HEADS):
-            key = (stim, ag, h)
-            if key in att_dict:
-                all_vals.append(att_dict[key])
-    if not all_vals:
-        plt.close(fig)
-        return None
-    vmin = min(m.min() for m in all_vals)
-    vmax = max(m.max() for m in all_vals)
-
-    for ag in range(n_groups):
-        for h in range(ATT_HEADS):
-            ax  = axes[ag][h]
-            key = (stim, ag, h)
-            if key not in att_dict:
-                ax.axis("off")
-                continue
-            show_cb = (h == ATT_HEADS - 1)
-            plot_heatmap(ax, att_dict[key],
-                         title=f"{AGE_LABELS[ag]}\nHead {h+1}",
-                         vmin=vmin, vmax=vmax, show_cbar=show_cb)
-
-    plt.tight_layout()
-    return fig
-
-
-def make_summary_figure(att_dict):
-    """Average over all stimuli → one summary figure."""
-    n_groups = len(AGE_GROUPS)
-    fig, axes = plt.subplots(n_groups, ATT_HEADS,
-                             figsize=(5 * ATT_HEADS, 4.5 * n_groups),
-                             squeeze=False)
-    fig.suptitle("Cross-channel attention (averaged over all stimuli)", fontsize=12, fontweight="bold")
-
-    # Accumulate grand-mean per (age_group, head)
-    grand = {}
-    counts = {}
-    for (stim, ag, h), mat in att_dict.items():
-        k = (ag, h)
-        grand.setdefault(k, np.zeros((14, 14)))
-        counts.setdefault(k, 0)
-        grand[k] += mat
-        counts[k] += 1
-    grand = {k: grand[k] / counts[k] for k in grand}
-
-    all_vals = list(grand.values())
-    vmin = min(m.min() for m in all_vals)
-    vmax = max(m.max() for m in all_vals)
-
-    for ag in range(n_groups):
-        for h in range(ATT_HEADS):
-            ax = axes[ag][h]
-            k  = (ag, h)
-            if k not in grand:
-                ax.axis("off")
-                continue
-            show_cb = (h == ATT_HEADS - 1)
-            plot_heatmap(ax, grand[k],
-                         title=f"{AGE_LABELS[ag]}\nHead {h+1}",
-                         vmin=vmin, vmax=vmax, show_cbar=show_cb)
-
-    plt.tight_layout()
-    return fig, grand
-
-
-def make_difference_figure(grand):
-    """Young vs Old difference heatmap, per head."""
-    fig, axes = plt.subplots(1, ATT_HEADS, figsize=(5 * ATT_HEADS, 4.5), squeeze=False)
-    fig.suptitle("Attention difference: Older − Young (averaged over all stimuli)",
-                 fontsize=12, fontweight="bold")
-
-    diffs = []
-    for h in range(ATT_HEADS):
-        young_k = (0, h)   # age group 0 = young
-        old_k   = (2, h)   # age group 2 = old
-        if young_k in grand and old_k in grand:
-            diffs.append(grand[old_k] - grand[young_k])
-        else:
-            diffs.append(None)
-
-    vext = max(abs(d).max() for d in diffs if d is not None)
-
-    for h, diff in enumerate(diffs):
-        ax = axes[0][h]
-        if diff is None:
-            ax.axis("off")
-            continue
-        im = ax.imshow(diff, cmap="RdBu_r", vmin=-vext, vmax=vext, aspect="auto")
-        ax.set_xticks(range(14)); ax.set_xticklabels(CH_LABELS, rotation=90, fontsize=7)
-        ax.set_yticks(range(14)); ax.set_yticklabels(CH_LABELS, fontsize=7)
-        ax.set_title(f"Head {h+1}", fontsize=10, fontweight="bold")
-        plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Δ attention")
-
-    plt.tight_layout()
-    return fig
+    return aggregate_bins(raw_acc, BIN_CONFIGS[5])
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    att_dict = collect_attention()
-
-    stimuli = sorted({k[0] for k in att_dict})
-    print(f"Found {len(stimuli)} stimuli, {len(att_dict)} (stim, age_group, head) combinations")
-
-    # Per-stimulus figures
-    stim_dir = os.path.join(OUT_DIR, "per_stimulus")
-    os.makedirs(stim_dir, exist_ok=True)
-    for stim in tqdm(stimuli, desc="Plotting stimuli"):
-        fig = make_stimulus_figure(att_dict, stim)
-        if fig is None:
-            continue
-        safe = stim.replace("/", "_").replace(" ", "_")
-        fig.savefig(os.path.join(stim_dir, f"att_{safe}.png"), dpi=150, bbox_inches="tight")
-        plt.close(fig)
-
-    # Summary + difference figures
-    fig_sum, grand = make_summary_figure(att_dict)
-    fig_sum.savefig(os.path.join(OUT_DIR, "F6_attention_summary.png"), dpi=200, bbox_inches="tight")
-    fig_sum.savefig(os.path.join(OUT_DIR, "F6_attention_summary.pdf"), bbox_inches="tight")
-    plt.close(fig_sum)
-
-    fig_diff = make_difference_figure(grand)
-    fig_diff.savefig(os.path.join(OUT_DIR, "F6_attention_diff_old_minus_young.png"), dpi=200, bbox_inches="tight")
-    fig_diff.savefig(os.path.join(OUT_DIR, "F6_attention_diff_old_minus_young.pdf"), bbox_inches="tight")
-    plt.close(fig_diff)
-
-    print(f"\nSaved:")
-    print(f"  {OUT_DIR}/F6_attention_summary.png")
-    print(f"  {OUT_DIR}/F6_attention_diff_old_minus_young.png")
-    print(f"  {OUT_DIR}/per_stimulus/att_<stimulus>.png  ({len(stimuli)} files)")
+    collect_attention()
+    print("\nAll caches ready:")
+    for n in (3, 4, 5):
+        p = os.path.join(_SCRIPT_DIR, f"attention_cache_{n}bin.pkl")
+        size = os.path.getsize(p) // 1024 if os.path.exists(p) else 0
+        print(f"  attention_cache_{n}bin.pkl  ({size} KB)")
