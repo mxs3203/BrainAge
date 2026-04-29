@@ -244,25 +244,30 @@ def collect_or_load():
 
 # ── Supplementary Figure S6 ──────────────────────────────────────────────────
 def make_s6(cache):
-    """3-column × 5-row grid of all 14 channel UMAPs."""
+    """3-column × 5-row grid of all 14 channel UMAPs. Slot 15 = combined legend."""
+    import matplotlib.colorbar as mcolorbar
+    import matplotlib.colors as mcolors
+
     n_cols = 3
-    n_rows = 5   # 15 slots; last one hidden
+    n_rows = 5   # 15 slots; slot 14 = legend, slot 15 hidden
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 20))
     axes = axes.flatten()
 
     age_all = np.concatenate([cache[ch]["ages"] for ch in CHANNELS])
     vmin, vmax = np.percentile(age_all, 2), np.percentile(age_all, 98)
 
+    sc_last = None
     for i, (ch_name, ch_label) in enumerate(zip(CHANNELS, CH_LABELS)):
-        ax  = axes[i]
-        d   = cache[ch_name]
-        xy  = d["umap_2d"]
-        ages = d["ages"]
+        ax     = axes[i]
+        d      = cache[ch_name]
+        xy     = d["umap_2d"]
+        ages   = d["ages"]
         region = REGION_MAP.get(ch_label, "Frontal")
 
         sc = ax.scatter(xy[:, 0], xy[:, 1], c=ages, cmap=AGE_CMAP,
                         vmin=vmin, vmax=vmax, s=6, alpha=0.75, edgecolors="none",
                         rasterized=True)
+        sc_last = sc
         ax.set_title(
             f"{ch_label}  [{region[0]}]",
             fontsize=10, fontweight="bold",
@@ -278,22 +283,32 @@ def make_s6(cache):
                 transform=ax.transAxes, fontsize=7, va="top", ha="left",
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="0.7", alpha=0.85))
 
-    # Shared colorbar
-    fig.colorbar(sc, ax=axes[:len(CHANNELS)], shrink=0.4, pad=0.02, label="Age (years)")
+    # Slot 14 (bottom-left): combined age colorbar + lobe legend
+    ax_leg = axes[14]
+    ax_leg.set_visible(True)
+    ax_leg.axis("off")
 
-    # Hide leftover panel
-    for j in range(len(CHANNELS), len(axes)):
+    # Age colorbar drawn into the left half of slot 14
+    cax = ax_leg.inset_axes([0.05, 0.55, 0.35, 0.06])   # [x, y, w, h] in axes coords
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    cb   = mcolorbar.ColorbarBase(cax, cmap=plt.get_cmap(AGE_CMAP),
+                                   norm=norm, orientation="horizontal")
+    cb.set_label("Age (years)", fontsize=9, fontweight="bold")
+    cb.ax.tick_params(labelsize=7)
+
+    # Lobe colour swatches in the right half of slot 14
+    lobe_handles = [plt.Line2D([0], [0], marker="o", color="w",
+                                markerfacecolor=c, markersize=10, label=r)
+                    for r, c in REGION_PALETTE.items()]
+    ax_leg.legend(handles=lobe_handles, loc="lower left",
+                  bbox_to_anchor=(0.48, 0.45),
+                  frameon=True, fontsize=9,
+                  title="Lobe", title_fontsize=9)
+
+    # Hide any remaining slots
+    for j in range(15, len(axes)):
         axes[j].set_visible(False)
 
-    # Region legend
-    handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=c,
-                           markersize=9, label=r)
-               for r, c in REGION_PALETTE.items()]
-    fig.legend(handles=handles, loc="lower right", frameon=True,
-               fontsize=9, title="Region", title_fontsize=9)
-
-    fig.suptitle("UMAP embeddings — channel-wise contrastive encoders", fontsize=14,
-                 fontweight="bold", y=1.002)
     fig.tight_layout()
     return fig
 
@@ -302,33 +317,76 @@ def make_s6(cache):
 MAIN_CHANNELS = ["EEG.T7", "EEG.P8"]   # channels shown as example UMAPs in main figure
 
 
+def save_metrics_csv(cache, out_path):
+    """Save Panel C table as a standalone CSV (sorted by kNN-MAE)."""
+    import csv
+    rows = []
+    for ch_name in CHANNELS:
+        d = cache[ch_name]
+        m = d["metrics"]
+        rows.append({
+            "Channel":   d["label"],
+            "Lobe":      REGION_MAP.get(d["label"], ""),
+            "kNN_MAE":   round(m["knn_mae"],    3),
+            "|r|":       round(m["spearman_r"], 3),
+            "Alignment": round(m["alignment"],  4),
+            "Uniformity":round(m["uniformity"], 3),
+        })
+    rows.sort(key=lambda r: r["kNN_MAE"])
+    with open(out_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["Channel","Lobe","kNN_MAE","|r|","Alignment","Uniformity"])
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"  → {out_path}")
+
+
 def make_f4(cache):
-    """F4 and AF4 UMAPs (top row) + kNN-MAE and Spearman-r bars (bottom row)."""
+    """2 UMAP panels (A, B) + kNN-MAE and Spearman-r bars (C, D). Panel C table → CSV."""
 
     best2 = MAIN_CHANNELS
 
     age_all = np.concatenate([cache[ch]["ages"] for ch in CHANNELS])
     vmin, vmax = np.percentile(age_all, 2), np.percentile(age_all, 98)
 
-    fig = plt.figure(figsize=(15, 11))
-    gs  = gridspec.GridSpec(2, 3, figure=fig,
-                            hspace=0.38, wspace=0.32,
-                            height_ratios=[1.5, 0.9])
+    plt.rcParams.update({
+        "figure.facecolor":  "white",
+        "axes.facecolor":    "white",
+        "savefig.facecolor": "white",
+        "savefig.edgecolor": "white",
+        "font.size":         10,
+        "font.weight":       "bold",
+        "axes.titlesize":    11,
+        "axes.labelsize":    10,
+        "axes.titleweight":  "bold",
+        "axes.labelweight":  "bold",
+        "xtick.labelsize":   9,
+        "ytick.labelsize":   9,
+        "text.color":        "black",
+        "axes.labelcolor":   "black",
+        "axes.edgecolor":    "black",
+        "xtick.color":       "black",
+        "ytick.color":       "black",
+    })
 
-    # ── Top row: 2 UMAPs ─────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(12, 9))
+    gs  = gridspec.GridSpec(2, 2, figure=fig,
+                            hspace=0.22, wspace=0.25,
+                            height_ratios=[1.4, 1.0])
+
+    # ── Top row: A and B — squared UMAP panels ────────────────────────────────
     for col, ch_name in enumerate(best2):
-        ax  = fig.add_subplot(gs[0, col])
-        d   = cache[ch_name]
-        xy  = d["umap_2d"]
-        ages = d["ages"]
+        ax     = fig.add_subplot(gs[0, col])
+        d      = cache[ch_name]
+        xy     = d["umap_2d"]
+        ages   = d["ages"]
         region = REGION_MAP.get(d["label"], "Frontal")
 
         sc = ax.scatter(xy[:, 0], xy[:, 1], c=ages, cmap=AGE_CMAP,
                         vmin=vmin, vmax=vmax, s=8, alpha=0.80,
                         edgecolors="none", rasterized=True)
         cbar = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label("Age (years)", fontsize=8)
-        cbar.ax.tick_params(labelsize=7)
+        cbar.set_label("Age (years)", fontsize=9, fontweight="bold")
+        cbar.ax.tick_params(labelsize=8)
 
         m = d["metrics"]
         panel_lbl = "A" if col == 0 else "B"
@@ -337,94 +395,59 @@ def make_f4(cache):
             f"kNN-MAE = {m['knn_mae']:.2f} yr  |r| = {m['spearman_r']:.3f}",
             fontsize=10, fontweight="bold", loc="left",
         )
-        ax.set_xlabel("UMAP-1", fontsize=8)
-        ax.set_ylabel("UMAP-2", fontsize=8)
-        ax.tick_params(labelsize=7)
+        ax.set_xlabel("UMAP-1", fontsize=9)
+        ax.set_ylabel("UMAP-2", fontsize=9)
+        ax.tick_params(labelsize=8)
+        ax.set_box_aspect(1)   # physically square axes box
 
-    # Top-right: blank or summary stats table
-    ax_info = fig.add_subplot(gs[0, 2])
-    ax_info.axis("off")
-    rows = []
-    for ch_name in CHANNELS:
-        d  = cache[ch_name]
-        m  = d["metrics"]
-        rows.append([d["label"],
-                     f"{m['knn_mae']:.2f}",
-                     f"{m['spearman_r']:.3f}",
-                     f"{m['alignment']:.4f}",
-                     f"{m['uniformity']:.2f}"])
-    rows.sort(key=lambda r: float(r[1]))   # sort by kNN-MAE
-
-    col_labels = ["Channel", "kNN-MAE", "|r|", "Align", "Unif"]
-    tbl = ax_info.table(
-        cellText=rows, colLabels=col_labels,
-        loc="center", cellLoc="center",
-    )
-    tbl.auto_set_font_size(False)
-    tbl.set_fontsize(7.5)
-    tbl.scale(1, 1.25)
-    # Bold header
-    for j in range(len(col_labels)):
-        tbl[(0, j)].set_facecolor("#DDEEFF")
-        tbl[(0, j)].set_text_props(fontweight="bold")
-    # Highlight the two example channels (F4 and AF4)
-    for row_i, row in enumerate(rows):
-        ch_label_row = row[0]
-        if ch_label_row in [cache[c]["label"] for c in MAIN_CHANNELS]:
-            for j in range(len(col_labels)):
-                tbl[(row_i + 1, j)].set_facecolor("#D5F5D5")
-    ax_info.set_title("C. Embedding metrics — all channels\n(sorted by kNN-MAE ↑)",
-                      fontsize=9, fontweight="bold", loc="left")
-
-    # ── Bottom row: metric bar charts ─────────────────────────────────────────
-    # Sort channels by kNN-MAE for bars
+    # ── Bottom row: C — kNN-MAE bars, D — Spearman bars ─────────────────────
     ch_sorted  = sorted(CHANNELS, key=lambda c: cache[c]["metrics"]["knn_mae"])
     lbl_sorted = [cache[c]["label"] for c in ch_sorted]
     colors_bar = [REGION_PALETTE[REGION_MAP.get(l, "Frontal")] for l in lbl_sorted]
-
-    # Panel D — kNN-MAE
-    ax_mae = fig.add_subplot(gs[1, :2])
-    knn_vals = [cache[c]["metrics"]["knn_mae"] for c in ch_sorted]
     main_labels = {cache[c]["label"] for c in MAIN_CHANNELS}
-    bars = ax_mae.bar(lbl_sorted, knn_vals, color=colors_bar, edgecolor="white",
-                      linewidth=0.5, zorder=3)
+
+    # Panel C — kNN-MAE
+    ax_mae   = fig.add_subplot(gs[1, 0])
+    knn_vals = [cache[c]["metrics"]["knn_mae"] for c in ch_sorted]
+    bars = ax_mae.bar(lbl_sorted, knn_vals, color=colors_bar,
+                      edgecolor="white", linewidth=0.5, zorder=3)
     for bi, lbl in enumerate(lbl_sorted):
         if lbl in main_labels:
             bars[bi].set_edgecolor("black")
             bars[bi].set_linewidth(1.8)
-    ax_mae.set_ylabel("kNN-MAE (years)", fontsize=9)
-    ax_mae.set_xlabel("Channel", fontsize=9)
-    ax_mae.set_title("D. Age prediction accuracy from embeddings  (kNN, k=10; lower = better)",
-                     fontsize=9, fontweight="bold", loc="left")
-    ax_mae.tick_params(axis="x", rotation=45, labelsize=8)
-    ax_mae.tick_params(axis="y", labelsize=8)
+    ax_mae.set_ylabel("kNN-MAE (years)")
+    ax_mae.set_xlabel("Channel")
+    ax_mae.set_title("C. kNN-MAE by channel  (lower = better)",
+                     fontsize=10, fontweight="bold", loc="left")
+    ax_mae.tick_params(axis="x", rotation=45)
     ax_mae.yaxis.set_minor_locator(ticker.AutoMinorLocator(2))
     ax_mae.grid(axis="y", linewidth=0.4, alpha=0.5, zorder=0)
     ax_mae.set_axisbelow(True)
 
-    # Panel E — Spearman |r|
-    ax_r = fig.add_subplot(gs[1, 2])
-    r_vals   = [cache[c]["metrics"]["spearman_r"] for c in ch_sorted]
-    bars2 = ax_r.barh(lbl_sorted, r_vals, color=colors_bar, edgecolor="white",
-                       linewidth=0.5, zorder=3)
+    # Panel D — Spearman |r|
+    ax_r   = fig.add_subplot(gs[1, 1])
+    r_vals = [cache[c]["metrics"]["spearman_r"] for c in ch_sorted]
+    bars2  = ax_r.barh(lbl_sorted, r_vals, color=colors_bar,
+                        edgecolor="white", linewidth=0.5, zorder=3)
     for bi, lbl in enumerate(lbl_sorted):
         if lbl in main_labels:
             bars2[bi].set_edgecolor("black")
             bars2[bi].set_linewidth(1.8)
-    ax_r.set_xlabel("|Spearman r|  (age vs. UMAP axis)", fontsize=8)
-    ax_r.set_title("E. Age–UMAP\ncorrelation",
-                   fontsize=9, fontweight="bold", loc="left")
-    ax_r.tick_params(labelsize=8)
+    ax_r.set_xlabel("|Spearman r|  (age vs. UMAP axis)")
+    ax_r.set_title("D. Age–UMAP correlation",
+                   fontsize=10, fontweight="bold", loc="left")
     ax_r.xaxis.set_minor_locator(ticker.AutoMinorLocator(2))
     ax_r.grid(axis="x", linewidth=0.4, alpha=0.5, zorder=0)
     ax_r.set_axisbelow(True)
 
-    # Region legend — placed inside panel D so it doesn't affect layout
+    # Region legend in panel D — upper right
     handles = [plt.Line2D([0], [0], marker="s", color="w",
                            markerfacecolor=c, markersize=9, label=r)
                for r, c in REGION_PALETTE.items()]
-    ax_mae.legend(handles=handles, loc="upper right", frameon=True,
-                  fontsize=8, title="Region", title_fontsize=8)
+    ax_r.legend(handles=handles, loc="upper right", frameon=True,
+                fontsize=9, title="Region", title_fontsize=9,
+                prop={"weight": "bold"})
+
     return fig, best2
 
 
@@ -440,6 +463,9 @@ if __name__ == "__main__":
                    dpi=200, bbox_inches="tight")
     plt.close(fig_s6)
     print("  → SF6_umap_all_channels.pdf/png")
+
+    print("Saving metrics CSV …")
+    save_metrics_csv(cache, os.path.join(OUT_DIR, "umap_metrics.csv"))
 
     print("Generating Main Figure F4 (UMAPs) …")
     fig_f4, best2 = make_f4(cache)

@@ -78,7 +78,9 @@ AGE_GROUPS = [(0,25),(25,31),(31,39),(39,47),(47,200)]
 plt.rcParams.update({
     "figure.facecolor": "white", "axes.facecolor": "white",
     "savefig.facecolor": "white", "savefig.edgecolor": "white",
-    "font.size": 10, "axes.titlesize": 12, "axes.labelsize": 10,
+    "font.size": 10, "font.weight": "bold",
+    "axes.titlesize": 12, "axes.labelsize": 10,
+    "axes.titleweight": "bold", "axes.labelweight": "bold",
     "xtick.labelsize": 9, "ytick.labelsize": 9,
     "text.color": "black", "axes.labelcolor": "black",
     "axes.edgecolor": "black", "xtick.color": "black", "ytick.color": "black",
@@ -238,10 +240,10 @@ if Z_SCORE:
                 conn[lobe][band] = list((arr - arr.mean()) / std)
 
 # ── Figure layout ─────────────────────────────────────────────────────────────
-fig = plt.figure(figsize=(20, 8))
-outer  = fig.add_gridspec(2, 1, hspace=0.35, height_ratios=[1, 1.4])
+fig = plt.figure(figsize=(14, 6))
+outer  = fig.add_gridspec(2, 1, hspace=0.65, height_ratios=[1, 1.7])
 gs_top = outer[0].subgridspec(1, 3, wspace=0.38)
-gs_bot = outer[1].subgridspec(1, 5, wspace=0.32)
+gs_bot = outer[1].subgridspec(1, 5, wspace=0.10)
 
 def style_ax(ax):
     ax.tick_params(axis="both", colors="black", labelcolor="black")
@@ -271,22 +273,29 @@ for pi, (lbl, ldata, title) in enumerate([
     ax.set_axisbelow(True)
     style_ax(ax)
 
-# ── Row 2: D–H (one per FFT band) ────────────────────────────────────────────
-for bi, band in enumerate(BANDS):
-    ax = fig.add_subplot(gs_bot[bi])
+# ── Row 2: D–H (one per FFT band) — shared y-axis ───────────────────────────
+bot_axes = []
+for bi in range(len(BANDS)):
+    ax = fig.add_subplot(gs_bot[bi], sharey=bot_axes[0] if bi > 0 else None)
+    bot_axes.append(ax)
+
+for bi, (band, ax) in enumerate(zip(BANDS, bot_axes)):
     for lobe in LOBES:
         ls = "--" if lobe == SOURCE_LOBE else "-"
         ax.plot(x_pos, conn[lobe][band], marker="o", color=REGION_PAL[lobe],
                 linewidth=2.2, markersize=6, linestyle=ls, zorder=3)
-    # Average across lobes
     avg_vals = np.nanmean([conn[l][band] for l in LOBES], axis=0)
     ax.plot(x_pos, avg_vals, marker="D", color="black",
             linewidth=2.0, markersize=5, linestyle="--", zorder=4)
     ax.set_xticks(x_pos)
     ax.set_xticklabels(bin_lbls, fontsize=9)
     ax.set_xlabel("Age bin", fontsize=9)
-    ax.set_ylabel("Att-weighted power (z-score)" if Z_SCORE else "Att-weighted power",
-                  fontsize=9)
+    if bi == 0:
+        ax.set_ylabel("Att-weighted power (z-score)" if Z_SCORE else "Att-weighted power",
+                      fontsize=9)
+    else:
+        ax.set_ylabel("")
+        plt.setp(ax.get_yticklabels(), visible=False)
     ax.set_title(BAND_TITLES[band], fontsize=10, fontweight="bold", loc="left")
     ax.grid(linewidth=0.4, alpha=0.4, color="0.75")
     ax.set_axisbelow(True)
@@ -300,8 +309,7 @@ lobe_handles.append(Line2D([0],[0], color="black", linewidth=2.0,
                             linestyle="--", marker="D", markersize=5, label="Average"))
 fig.legend(handles=lobe_handles, loc="lower center", ncol=5,
            fontsize=11, frameon=True,
-           title=f"",
-           title_fontsize=11, bbox_to_anchor=(0.5, -0.03))
+           title_fontsize=11, bbox_to_anchor=(0.5, -0.12))
 
 _head_tag = {"HEAD1":"h1","HEAD2":"h2","HEAD1+HEAD2":"avg"}[GRAPH_HEAD]
 _src_tag  = SOURCE_LOBE.lower()
