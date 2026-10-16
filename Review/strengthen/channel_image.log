@@ -1,0 +1,47 @@
+public: 539 train / 179 val subjects
+in-house held-out: val 20 / locked 41 subjects
+
+  order native      ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8', 'AF4']
+  order anatomic    ['AF3', 'AF4', 'F7', 'F3', 'F4', 'F8', 'FC5', 'FC6', 'T7', 'T8', 'P7', 'P8', 'O1', 'O2']
+  order homologous  ['AF3', 'AF4', 'F7', 'F8', 'F3', 'F4', 'FC5', 'FC6', 'T7', 'T8', 'P7', 'P8', 'O1', 'O2']
+  order shuffled    ['FC5', 'F8', 'P8', 'O1', 'O2', 'AF3', 'T7', 'F7', 'AF4', 'FC6', 'F3', 'P7', 'T8', 'F4']
+
+10 runs: [('eegnet', 'native'), ('eegnet', 'shuffled'), ('shallow', 'native'), ('shallow', 'shuffled'), ('local2d', 'native'), ('local2d', 'anatomic'), ('local2d', 'homologous'), ('local2d', 'shuffled'), ('conv2d_gru', 'native'), ('conv2d_gru', 'shuffled')]
+
+  [eegnet/native       ] ep 1 PUB r -0.067 MAE 16.15 sl -1.051 xcoh +0.172 | IHval +0.038 | IHtest +0.005 MAE  13.55
+  [eegnet/native       ] ep 2 PUB r 0.003 MAE 15.03 sl -0.998 xcoh -0.123 | IHval +0.047 | IHtest +0.101 MAE  15.91
+  [eegnet/native       ] ep 3 PUB r 0.020 MAE 15.60 sl -0.988 xcoh -0.159 | IHval -0.034 | IHtest +0.065 MAE  17.27
+  [eegnet/native       ] ep 4 PUB r -0.001 MAE 15.77 sl -1.001 xcoh -0.099 | IHval -0.175 | IHtest +0.079 MAE  13.91
+  [eegnet/native       ] ep 5 PUB r 0.064 MAE 14.49 sl -0.956 xcoh -0.151 | IHval -0.175 | IHtest +0.180 MAE  16.04
+  [eegnet/native       ] ep 6 PUB r 0.004 MAE 15.56 sl -0.997 xcoh -0.106 | IHval -0.247 | IHtest +0.167 MAE  18.40
+  [eegnet/native       ] ep 7 PUB r 0.035 MAE 15.02 sl -0.979 xcoh -0.152 | IHval -0.235 | IHtest +0.181 MAE  18.20
+  [eegnet/native       ] ep 8 PUB r 0.067 MAE 14.32 sl -0.960 xcoh -0.190 | IHval -0.266 | IHtest +0.178 MAE  17.15
+  [eegnet/native       ] ep 9 PUB r 0.081 MAE 14.22 sl -0.949 xcoh -0.156 | IHval -0.236 | IHtest +0.203 MAE  16.33
+  [eegnet/native       ] ep10 PUB r 0.062 MAE 14.94 sl -0.966 xcoh -0.192 | IHval -0.248 | IHtest +0.125 MAE  19.17
+  [eegnet/native       ] ep11 PUB r 0.117 MAE 13.92 sl -0.921 xcoh -0.165 | IHval -0.293 | IHtest +0.209 MAE  16.55
+  [eegnet/native       ] ep12 PUB r 0.142 MAE 14.06 sl -0.917 xcoh -0.185 | IHval -0.305 | IHtest +0.158 MAE  19.61
+  [eegnet/shuffled     ] ep 1 PUB r -0.068 MAE 17.51 sl -1.061 xcoh +0.139 | IHval -0.399 | IHtest -0.081 MAE  17.15
+  [eegnet/shuffled     ] ep 2 PUB r 0.017 MAE 15.93 sl -0.985 xcoh -0.084 | IHval -0.349 | IHtest -0.026 MAE  17.15
+  [eegnet/shuffled     ] ep 3 PUB r 0.074 MAE 15.40 sl -0.950 xcoh -0.112 | IHval -0.208 | IHtest +0.034 MAE  18.24
+  [eegnet/shuffled     ] ep 4 PUB r 0.088 MAE 14.35 sl -0.936 xcoh -0.113 | IHval -0.281 | IHtest +0.038 MAE  16.55
+  [eegnet/shuffled     ] ep 5 PUB r 0.102 MAE 14.73 sl -0.926 xcoh -0.110 | IHval -0.213 | IHtest +0.037 MAE  17.17
+  [eegnet/shuffled     ] ep 6 PUB r 0.098 MAE 14.34 sl -0.930 xcoh -0.110 | IHval -0.139 | IHtest +0.081 MAE  18.23
+  [eegnet/shuffled     ] ep 7 PUB r 0.096 MAE 14.48 sl -0.935 xcoh -0.095 | IHval -0.281 | IHtest +0.026 MAE  18.35
+  [eegnet/shuffled     ] ep 8 PUB r 0.113 MAE 14.50 sl -0.938 xcoh -0.127 | IHval -0.105 | IHtest +0.030 MAE  19.64
+  [eegnet/shuffled     ] ep 9 PUB r 0.097 MAE 14.31 sl -0.938 xcoh -0.091 | IHval -0.078 | IHtest +0.054 MAE  19.51
+  [eegnet/shuffled     ] ep10 PUB r 0.079 MAE 14.29 sl -0.953 xcoh -0.122 | IHval -0.031 | IHtest +0.040 MAE  19.29
+  [eegnet/shuffled     ] ep11 PUB r 0.194 MAE 13.40 sl -0.861 xcoh -0.142 | IHval -0.136 | IHtest +0.016 MAE  18.05
+  [eegnet/shuffled     ] ep12 PUB r 0.137 MAE 13.75 sl -0.915 xcoh -0.150 | IHval -0.056 | IHtest +0.061 MAE  20.29
+  [shallow/native      ] ep 1 PUB r 0.218 MAE 15.55 sl -0.749 xcoh -0.130 | IHval -0.075 | IHtest +0.010 MAE  29.79
+  [shallow/native      ] ep 2 PUB r 0.188 MAE 15.99 sl -0.774 xcoh -0.154 | IHval -0.089 | IHtest +0.147 MAE  30.89
+  [shallow/native      ] ep 3 PUB r 0.293 MAE 18.22 sl -0.575 xcoh +0.170 | IHval -0.103 | IHtest +0.146 MAE  37.37
+  [shallow/native      ] ep 4 PUB r 0.257 MAE 16.15 sl -0.668 xcoh -0.144 | IHval -0.133 | IHtest +0.148 MAE  30.72
+  [shallow/native      ] ep 5 PUB r 0.227 MAE 19.29 sl -0.644 xcoh -0.139 | IHval -0.103 | IHtest +0.148 MAE  36.90
+  [shallow/native      ] ep 6 PUB r 0.330 MAE 13.72 sl -0.651 xcoh +0.210 | IHval -0.190 | IHtest +0.013 MAE  27.04
+  [shallow/native      ] ep 7 PUB r 0.285 MAE 18.03 sl -0.605 xcoh +0.189 | IHval -0.241 | IHtest +0.134 MAE  37.60
+  [shallow/native      ] ep 8 PUB r 0.337 MAE 13.56 sl -0.665 xcoh +0.215 | IHval -0.195 | IHtest +0.075 MAE  25.05
+  [shallow/native      ] ep 9 PUB r 0.300 MAE 16.26 sl -0.605 xcoh +0.188 | IHval -0.212 | IHtest +0.128 MAE  33.59
+  [shallow/native      ] ep10 PUB r 0.320 MAE 17.66 sl -0.535 xcoh +0.244 | IHval -0.270 | IHtest +0.142 MAE  34.11
+  [shallow/native      ] ep11 PUB r 0.351 MAE 16.99 sl -0.533 xcoh +0.245 | IHval -0.238 | IHtest +0.093 MAE  37.38
+  [shallow/native      ] ep12 PUB r 0.340 MAE 15.99 sl -0.575 xcoh +0.243 | IHval -0.162 | IHtest +0.075 MAE  33.13
+  [shallow/shuffled    ] ep 1 PUB r 0.231 MAE 15.67 sl -0.737 xcoh -0.156 | IHval -0.001 | IHtest +0.048 MAE  28.60

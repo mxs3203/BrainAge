@@ -25,9 +25,10 @@ sys.path.insert(0, os.path.dirname(_SCRIPT_DIR))
 from ModelDefs.AttAgeModel import AgeModel
 from utils.weighted_sampling_age import load_or_create_index, age_to_bin
 
+
 # ── Config ────────────────────────────────────────────────────────────────────
-CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_46.pth"
-OUTPUT_PATH  = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_46_bn_calibrated.pth"
+CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_9.pth"
+OUTPUT_PATH  = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_9_bn_calibrated.pth"
 ROOT_DIR     = "../results/EEG_LSTM_windows/"
 PKL_PATH     = "eeg_window_index.pkl"
 BATCH_SIZE      = 512

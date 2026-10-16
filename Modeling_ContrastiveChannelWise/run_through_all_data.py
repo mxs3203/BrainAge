@@ -13,10 +13,10 @@ from ModelDefs.AttAgeModel import AgeModel
 from utils.weighted_sampling_age import load_or_create_index, age_to_bin
 
 # ── Config ──────────────────────────────────────────────────────────────────
-CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_46_bn_calibrated.pth"
+CHECKPOINT   = "ContrastiveModel_chkpoints/FullModel_Epoch_v4_9_bn_calibrated.pth"
 ROOT_DIR     = "../results/EEG_LSTM_windows/"
 PKL_PATH     = "eeg_window_index.pkl"
-OUTPUT_CSV   = "results.csv"
+OUTPUT_CSV   = "results_all.csv"
 BATCH_SIZE   = 8000
 NUM_WORKERS  = 20
 

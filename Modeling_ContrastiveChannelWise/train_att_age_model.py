@@ -86,7 +86,7 @@ model = AgeModel(attention_heads=att_heads, common_dim=common_dim,
                  unlock_encoders=UNLOCK_ENCODERS,
                  dropout=DROPOUT,
                  hyperparam_config="contrastive_hyperparams.json")
-path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch0.pth")
+path = os.path.join("ContrastiveModel_chkpoints/FullModel_Epoch_v4_46_original.pth")
 print(path)
 if os.path.exists(path):
     print(f"Continuing training from ... {path}")
