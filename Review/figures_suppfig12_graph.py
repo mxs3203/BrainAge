@@ -93,7 +93,7 @@ def main():
              "combined z score", PURPLE,
              "equal weights, fixed a priori", "F"))):
         pp = perm_p(v, age, np.random.default_rng(11), NPERM)
-        gs, r, rs = panel_d(axs[slot], v, age, ttl, ylab, col, note,
+        gs, r, rs = panel_d(axs[slot], v, age, "", ylab, col, note,
                             letter=lett, pperm=pp)
         rows.append(dict(panel=lett, index=ttl[3:].replace("$_{log}$", "_log"),
                          n=len(age), r=round(r, 4), rho=round(rs, 4),
@@ -117,9 +117,6 @@ def main():
     ax.set_yticklabels(CH, fontsize=6.5)
     nsig = int((np.abs(R[np.triu_indices(14, 1)]) >
                 1.96 / np.sqrt(len(age_all) - 3)).sum())
-    ax.set_title(f"C. Per-edge correlation with age (n = {len(age_all)})\n"
-                 f"{nsig} of 91 edges exceed the uncorrected threshold\n"
-                 f"(4.5 expected by chance)", fontsize=9.5, loc="left")
     _letter(ax, "C")
 
     # ---- B  every measure, marginal vs conditional (seperate columns) ----
@@ -154,9 +151,6 @@ def main():
                                          fontsize=8)
     ax.axvline(0, color="k", lw=1); ax.invert_yaxis()
     ax.set_xlabel("r with age", fontsize=8.5)
-    ax.set_title("B. Every graph measure, both notions of connection\n"
-                 "* = Holm p < 0.05 within that graph; the conditional\n"
-                 "graph carries almost nothing", fontsize=9.5, loc="left")
     ax.legend(fontsize=7.2, frameon=False, loc="lower right")
     _letter(ax, "B")
 
@@ -169,11 +163,6 @@ def main():
     xs = np.array([age_all.min(), age_all.max()])
     ax.plot(xs, b1 * xs + b0, color="k", lw=2, ls="--")
     rr = _pearson(ir, age_all)
-    ax.set_title(f"D. Control: same index, RAW covariance graph\n"
-                 f"n = {len(age_all)}, r = {rr:+.3f}, "
-                 f"p = {ep(rr, len(ir)):.3f};\n"
-                 f"the shift is contributed by the model",
-                 fontsize=9.5, loc="left")
     ax.set_xlabel("chronological age (years)", fontsize=8.5)
     ax.set_ylabel("ANT - POS node strength", fontsize=8.5)
     _letter(ax, "D")

@@ -79,8 +79,8 @@ def main():
         off += step
     ax.set_xlim(0, 2.35); ax.set_yticks([])
     ax.set_xlabel("time (s)"); ax.set_ylabel("amplitude (a.u.)")
-    ax.set_title(f"A. Each augmentation applied on its own ({a.channel}, grey = original)",
-                 fontsize=10.5, loc="left")
+    ax.text(-0.13, 1.08, "A", transform=ax.transAxes, fontsize=13,
+            fontweight="bold", va="bottom")
     ax.legend(fontsize=8, frameon=False, ncol=5, loc="upper left")
     for s in ("top", "right"): ax.spines[s].set_visible(False)
 
@@ -91,7 +91,8 @@ def main():
         ax.plot(t, v, color=BLUE if k == 0 else RED, lw=0.9, label=lab)
         ax.set_xlim(0, 2); ax.set_xlabel("time (s)")
         if k == 0: ax.set_ylabel("amplitude (a.u.)")
-        ax.set_title(f"{'BC'[k]}. Full augmentation, {lab}", fontsize=10.5, loc="left")
+        ax.text(-0.13, 1.08, "BC"[k], transform=ax.transAxes, fontsize=13,
+                fontweight="bold", va="bottom")
         ax.legend(fontsize=8, frameon=False)
         ax.grid(alpha=0.16, lw=0.6); ax.set_axisbelow(True)
         for s in ("top", "right"): ax.spines[s].set_visible(False)
@@ -102,7 +103,8 @@ def main():
     ax.plot(t, v2 - x0, color=RED, lw=0.8, alpha=0.75, label="view 2 - original")
     ax.axhline(0, color="#333333", lw=0.8)
     ax.set_xlim(0, 2); ax.set_xlabel("time (s)"); ax.set_ylabel("difference (a.u.)")
-    ax.set_title("D. Difference from the original", fontsize=10.5, loc="left")
+    ax.text(-0.13, 1.08, "D", transform=ax.transAxes, fontsize=13,
+            fontweight="bold", va="bottom")
     ax.legend(fontsize=8, frameon=False)
     ax.grid(alpha=0.16, lw=0.6); ax.set_axisbelow(True)
     for s in ("top", "right"): ax.spines[s].set_visible(False)
@@ -115,7 +117,8 @@ def main():
         P = np.abs(np.fft.rfft(sig * w))**2
         ax.semilogy(f[keep], P[keep], color=c, lw=1.1, label=lab)
     ax.set_xlabel("frequency (Hz)"); ax.set_ylabel("power (a.u.)")
-    ax.set_title("E. Augmentation preserves the spectral profile", fontsize=10.5, loc="left")
+    ax.text(-0.13, 1.08, "E", transform=ax.transAxes, fontsize=13,
+            fontweight="bold", va="bottom")
     ax.legend(fontsize=8, frameon=False)
     ax.grid(alpha=0.16, lw=0.6); ax.set_axisbelow(True)
     for s in ("top", "right"): ax.spines[s].set_visible(False)

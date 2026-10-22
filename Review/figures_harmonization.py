@@ -66,7 +66,6 @@ def main():
     ax.text(5.0, 0.60, "identical treatment for every dataset — the resulting windows "
                        "are interchangeable across sources",
             ha="center", fontsize=8.5, style="italic", color=GRAY)
-    ax.set_title("A. Harmonisation pipeline", loc="left")
     panel(ax, "A")
 
     # ---------- B: native format heterogeneity ----------
@@ -87,7 +86,6 @@ def main():
     ax2.set_ylabel("native channel count", color=GRAY)
     ax2.tick_params(axis="y", labelcolor=GRAY)
     ax.set_xticks(x); ax.set_xticklabels(order, rotation=20, fontsize=7.5)
-    ax.set_title("B. Sources differ in rate and montage", loc="left")
     ax.grid(True, axis="y", alpha=0.25); ax.set_axisbelow(True)
     panel(ax, "B")
 
@@ -110,7 +108,6 @@ def main():
                 fontweight="bold", color=(RED if s != 1 else GRAY))
     ax.set_yticks(ypos); ax.set_yticklabels(order, fontsize=7.5); ax.invert_yaxis()
     ax.set_xlabel("robust signal amplitude as read (log scale)")
-    ax.set_title("C. Declared units unreliable → measured and corrected", loc="left")
     ax.grid(True, axis="x", alpha=0.25); ax.set_axisbelow(True)
     panel(ax, "C")
 
@@ -131,7 +128,6 @@ def main():
     ax.axhspan(5, 50, color=GREEN, alpha=0.10)
     ax.set_ylabel("window amplitude (µV, std)")
     ax.tick_params(axis="x", labelrotation=20, labelsize=7.5)
-    ax.set_title("D. After harmonisation all sources are comparable", loc="left")
     ax.grid(True, axis="y", alpha=0.25); ax.set_axisbelow(True)
     panel(ax, "D")
 
@@ -150,7 +146,6 @@ def main():
     ax.set_xticks(x); ax.set_xticklabels(order, rotation=20, fontsize=7.5)
     ax.set_ylabel("512-sample windows (log scale)")
     ax.set_ylim(top=max(nwin) * 4)
-    ax.set_title("E. Windows per dataset (2 s, stride 1 s)", loc="left")
     ax.text(0.02, 0.97, "windows never cross a recording boundary, so each\n"
                         "window keeps its (subject, stimulus) pair",
             transform=ax.transAxes, fontsize=7.5, va="top", color=GRAY)

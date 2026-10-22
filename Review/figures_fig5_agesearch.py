@@ -87,7 +87,7 @@ def importances(d):
     from sklearn.inspection import permutation_importance
     X, names = design_matrix(d)
     out = {}
-    for tgt, lab in (("score", "objective score"), ("test_r", "hold-out r")):
+    for tgt, lab in (("score", "objective score"), ("test_r", "validation r")):
         y = d[tgt].to_numpy(float)
         k = np.isfinite(y) & np.isfinite(X).all(1)
         rf = RandomForestRegressor(n_estimators=600, min_samples_leaf=3,
@@ -136,11 +136,11 @@ def main():
     # ---- B  hyperparameter importance --------------------------------
     names, imp = importances(d)
     a = ax[1]
-    order = np.argsort(imp["hold-out r"]["imp"])
+    order = np.argsort(imp["validation r"]["imp"])
     y = np.arange(len(names))
     w = .4
     for i, (lab, c) in enumerate((("objective score", NAVY),
-                                  ("hold-out r", RED))):
+                                  ("validation r", RED))):
         a.barh(y + (i - .5) * w, imp[lab]["imp"][order], height=w,
                xerr=imp[lab]["sd"][order], color=c, alpha=.85,
                error_kw=dict(elinewidth=.7, ecolor="#333333"),

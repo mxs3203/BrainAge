@@ -163,7 +163,8 @@ def main():
     style_xticks(ax, d.ch.values)
     ax.set_xlabel("Channel"); ax.set_ylabel("Best information score")
     ax.set_ylim(max(0, (-d.score).min() - 0.04), (-d.score).max() + 0.02)
-    ax.set_title("A. Best information score per channel")
+    ax.text(-0.11, 1.07, "A", transform=ax.transAxes, fontsize=14,
+            fontweight="bold", va="top")
 
     # ---- B  embedding geometry (was H) -------------------------------
     ax = f2.add_subplot(g2[0, 1])
@@ -181,7 +182,8 @@ def main():
     ax.text(ax.get_xlim()[1], -2.05, "targets", fontsize=7.5, color=RED,
             ha="right", va="bottom", fontweight="bold")
     ax.set_xlabel("Alignment (lower = better)"); ax.set_ylabel("Uniformity")
-    ax.set_title("B. Embedding geometry vs targets")
+    ax.text(-0.11, 1.07, "B", transform=ax.transAxes, fontsize=14,
+            fontweight="bold", va="top")
 
     # ---- C/D  final training curves (were J/K) -----------------------
     chans = [c for c in df.ch if c in hist]
@@ -189,11 +191,11 @@ def main():
     axC = f2.add_subplot(g2[1, 0])
     axD = f2.add_subplot(g2[1, 1])
     if not chans:
-        for ax, t in ((axC, "C. Contrastive training loss by channel"),
-                      (axD, "D. Validation score by epoch")):
+        for ax, t in ((axC, "C"), (axD, "D")):
             ax.text(0.5, 0.5, "training not finished", ha="center", va="center",
                     fontsize=10, color=GRAY, transform=ax.transAxes)
-            ax.set_title(t)
+            ax.text(-0.11, 1.07, t, transform=ax.transAxes, fontsize=14,
+                    fontweight="bold", va="top")
     else:
         for i, ch in enumerate(chans):
             h = hist[ch]["history"]
@@ -208,9 +210,11 @@ def main():
                          color=ramp[i], markeredgecolor="k",
                          markeredgewidth=0.6, zorder=4)
         axC.set_xlabel("Epoch"); axC.set_ylabel("Contrastive training loss")
-        axC.set_title("C. Contrastive training loss by channel")
+        axC.text(-0.11, 1.07, "C", transform=axC.transAxes, fontsize=14,
+                 fontweight="bold", va="top")
         axD.set_xlabel("Epoch"); axD.set_ylabel("Validation information score")
-        axD.set_title("D. Validation score by epoch (dot = best)")
+        axD.text(-0.11, 1.07, "D", transform=axD.transAxes, fontsize=14,
+                 fontweight="bold", va="top")
         axD.legend(fontsize=6, ncol=2, loc="lower right", framealpha=0.9)
 
     for ext in ("pdf", "png"):

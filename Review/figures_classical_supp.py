@@ -115,7 +115,6 @@ def scat(ax, t, p, title, col, letter, chance):
             bbox=dict(fc="white", ec="#DDDDDD", boxstyle="round,pad=0.42"))
     ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
     ax.set_xlabel("chronological age (years)"); ax.set_ylabel("predicted age (years)")
-    ax.set_title(title, fontsize=10.5, pad=7)
     ax.text(-0.14, 1.07, letter, transform=ax.transAxes, fontsize=14,
             fontweight="bold", va="top")
     ax.grid(alpha=0.18, lw=0.6); ax.set_axisbelow(True)
@@ -153,7 +152,6 @@ def main():
                 color="white")
     ax.set_xticks(x); ax.set_xticklabels(labs, fontsize=9)
     ax.set_ylabel("MAE on held-out 41 (years)"); ax.set_ylim(0, 11.4)
-    ax.set_title("Accuracy by model, in-house training", fontsize=10.5, pad=7)
     ax.text(-0.14, 1.07, "C", transform=ax.transAxes, fontsize=14,
             fontweight="bold", va="top")
     ax.grid(axis="y", alpha=0.18, lw=0.6); ax.set_axisbelow(True)
@@ -169,7 +167,6 @@ def main():
     ax.axvline(0, color="#333333", lw=1.6)
     ax.set_xlabel("$\\Delta$MAE, classical $-$ ours (years)")
     ax.set_ylabel("bootstrap density")
-    ax.set_title("Neither difference excludes zero", fontsize=10.5, pad=7)
     ax.legend(fontsize=8.6, frameon=False, loc="upper right")
     ax.text(-0.14, 1.07, "D", transform=ax.transAxes, fontsize=14,
             fontweight="bold", va="top")
@@ -187,7 +184,6 @@ def main():
     ax.set_xticks(x); ax.set_xticklabels([lab[i] for i in o], fontsize=8.6, rotation=20,
                                          ha="right")
     ax.set_ylabel("5-fold CV MAE on the 40 held-in (years)")
-    ax.set_title("Which feature family carries the signal", fontsize=10.5, pad=7)
     ax.text(-0.14, 1.07, "E", transform=ax.transAxes, fontsize=14,
             fontweight="bold", va="top")
     ax.grid(axis="y", alpha=0.18, lw=0.6); ax.set_axisbelow(True)
@@ -215,8 +211,6 @@ def main():
     ax.set_xticks(x)
     ax.set_xticklabels(["SVR", "Elastic\nnet", "Gauss.\nproc.", "Ensemble"], fontsize=9)
     ax.set_ylabel("correlation with age (r)"); ax.set_ylim(-0.12, 0.88)
-    ax.set_title("Classical features do not survive the device change",
-                 fontsize=10.5, pad=7)
     ax.legend(fontsize=8.4, frameon=False, loc="upper left")
     ax.text(-0.14, 1.07, "F", transform=ax.transAxes, fontsize=14,
             fontweight="bold", va="top")

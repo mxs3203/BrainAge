@@ -1,6 +1,6 @@
 """Figures 6 and 7 and Supplementary Figure 14, regrouped.
 
-Fig6      = the three model-free PASA arms.
+_old_fig6 = the three model-free PASA arms (superseded).
 Fig7      = the four predicted-vs-true panels.
 SuppFig14 = the two G_log age panels + the per-tertile matrices and r histogram.
 Nothing is recomputed from the model; everything comes from the saved tables.
@@ -89,7 +89,9 @@ def main():
     print(f"{len(age_m)} locked subjects, {len(age_r)} model-free subjects, "
           f"{len(df)} prediction rows")
 
-    # ===================== FIGURE 6: the model-free arms =============
+    # ---- the old model-free Figure 6. superseded by the graph version in
+    # figures_fig6_graph.py, kept only because Figure 7 reuses the arms.
+    # NOT named Fig6: it used to overwrite the real one on every run.
     fig = plt.figure(figsize=(16.0, 5.1))
     gs = fig.add_gridspec(1, 3, wspace=0.27)
     for k, (v, ttl, ylab, col, note, lett) in enumerate((
@@ -105,9 +107,9 @@ def main():
         panel(ax, v, age_r, EDGES, LABELS, ttl, ylab, col, note,
               letter=lett, pperm=pp)
     for ext in ("pdf", "png"):
-        fig.savefig(os.path.join(OUT, f"Fig6.{ext}"), dpi=165,
+        fig.savefig(os.path.join(OUT, f"_old_fig6_modelfree.{ext}"), dpi=165,
                     bbox_inches="tight")
-    print("wrote Figures/Fig6.pdf (+ .png), 3 panels")
+    print("wrote Figures/_old_fig6_modelfree.pdf (+ .png), 3 panels")
 
     # ===================== FIGURE 7: predicted vs chronological ======
     tr_pub = df[df.split == "public_train"]
@@ -123,16 +125,16 @@ def main():
              "A. TRAINING DATA (public pool + in-house fit)",
              "IN-SAMPLE - not a result", P4.RED, "A")
     P4.panel(ax7[1], [("public validation", val_pub, P4.NAVY, .55)],
-             "B. PUBLIC VALIDATION, pooled", "held out", P4.GREEN, "B")
+             "B. PUBLIC VALIDATION, pooled", "", P4.GREEN, "B")
     cols = [P4.NAVY, P4.TEAL, P4.PURPLE, P4.AMBER]
     P4.panel_by_dataset(
         ax7[2], [(d.replace("public: ", ""), val_pub[val_pub.cohort == d],
                   cols[i % len(cols)]) for i, d in enumerate(dsets)],
         "C. PUBLIC VALIDATION, split by cohort",
-        "held out (panel B, split)", P4.GREEN, "C")
+        "", P4.GREEN, "C")
     P4.panel(ax7[3], [("in-house hold-out", lock_ih, P4.PURPLE, .9)],
              "D. IN-HOUSE HOLD-OUT (41, locked)",
-             "held out", P4.GREEN, "D")
+             "", P4.GREEN, "D")
     f7.tight_layout()
     for ext in ("pdf", "png"):
         f7.savefig(os.path.join(OUT, f"Fig7.{ext}"), dpi=165,
@@ -147,15 +149,15 @@ def main():
     diff = gm[2] - gm[0]
     dv = np.nanmax(np.abs(np.where(off, diff, np.nan)))
     mat(f2.add_subplot(g2[0, 0]), diff,
-        "A. G$_{log}$ contrast, oldest - youngest tertile", "A", f2, -dv, dv)
+        "", "A", f2, -dv, dv)
     rv = np.nanmax(np.abs(np.where(off, R, np.nan)))
     mat(f2.add_subplot(g2[0, 1]), R,
-        f"B. Per-pair correlation with age (n={len(age_m)})", "B", f2, -rv, rv)
+        "", "B", f2, -rv, rv)
 
     vmax = max(np.nanmax(np.abs(np.where(off, g, np.nan))) for g in gm)
     for k in range(3):
         ax = f2.add_subplot(g2[0, 2] if k == 0 else g2[1, k - 1])
-        mat(ax, gm[k], f"{'CDE'[k]}. {names[k]}", "CDE"[k], f2, -vmax, vmax)
+        mat(ax, gm[k], "", "CDE"[k], f2, -vmax, vmax)
 
     ax = f2.add_subplot(g2[1, 2])
     # symmetric matrix, count each pair once (was double counting)
@@ -170,9 +172,6 @@ def main():
                    label="p = 0.05 (uncorrected)" if sgn > 0 else None)
     ax.set_xlabel("Pearson r with age", fontsize=8.5)
     ax.set_ylabel("channel pairs", fontsize=8.5)
-    ax.set_title(f"F. Per-pair correlations: {n_sig} of {int(up.sum())} "
-                 f"exceed\nthe uncorrected threshold "
-                 f"({exp_sig:.1f} expected by chance)", fontsize=9.5, loc="left")
     ax.legend(fontsize=7, frameon=False)
     ax.tick_params(labelsize=7.5)
     for sp in ("top", "right"):

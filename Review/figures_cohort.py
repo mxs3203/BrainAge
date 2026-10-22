@@ -244,14 +244,12 @@ def main():
     xs = np.arange(len(q))
     ax2[0].bar(xs, q.kept, color="#123B7A", edgecolor="black", linewidth=0.4)
     ax2[0].set_ylabel("kept rows")
-    ax2[0].set_title("A. Retained samples per stimulus", loc="left")
     ax2[0].grid(True, axis="y", alpha=0.25); ax2[0].set_axisbelow(True)
     panel(ax2[0], "A", dx=-0.055, dy=1.03)
 
     ax2[1].bar(xs, q.discarded_percent, color="#C62828", edgecolor="black",
                linewidth=0.4)
     ax2[1].set_ylabel("discarded (%)")
-    ax2[1].set_title("B. Discarded by quality filtering", loc="left")
     ax2[1].set_xticks(xs)
     ax2[1].set_xticklabels(q.label, rotation=90, fontsize=7)
     ax2[1].set_xlabel("cognitive task")

@@ -17,6 +17,7 @@ from figures_fig5_agesearch import (  # noqa: E402
     load as load_trials, importances, expected_max,
     HEAD_C, STUDY_C, FLOOR_PUB, FLOOR_IH)
 import channel_encoder_search_arch as A  # noqa: E402
+from pasa_age_groups import _letter  # noqa: E402
 import optuna  # noqa: E402
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -172,10 +173,10 @@ def main():
     # ---- A  hyperparameter importance -------------------------------
     names, imp = importances(d)
     a = s[0]
-    order = np.argsort(imp["hold-out r"]["imp"])
+    order = np.argsort(imp["validation r"]["imp"])
     y = np.arange(len(names)); w = .4
     for i, (lab, c) in enumerate((("objective score", NAVY),
-                                  ("hold-out r", RED))):
+                                  ("validation r", RED))):
         a.barh(y + (i - .5) * w, imp[lab]["imp"][order], height=w,
                xerr=imp[lab]["sd"][order], color=c, alpha=.85,
                error_kw=dict(elinewidth=.7, ecolor="#333333"),
@@ -183,7 +184,7 @@ def main():
     a.set_yticks(y); a.set_yticklabels([names[i] for i in order], fontsize=7.5)
     a.axvline(0, color="k", lw=1)
     a.set_xlabel("permutation importance (drop in R2)")
-    a.set_title("A. Hyperparameter importance (random forest)")
+    _letter(a, "A")
     a.legend(fontsize=7, loc="lower right")
 
     # ---- B  head x encoder adaptation -------------------------------
@@ -202,7 +203,7 @@ def main():
     a.set_xticks(xs); a.set_xticklabels(heads, rotation=20, ha="right",
                                         style="italic")
     a.set_ylabel("best in-house hold-out r")
-    a.set_title("B. Best hold-out r by head and encoder adaptation")
+    _letter(a, "B")
     a.legend(fontsize=7.5)
 
     # ---- C  hold-out r by head --------------------------------------
@@ -221,7 +222,7 @@ def main():
     a.axhline(d.test_r.mean(), color=RED, ls="--", lw=1.2,
               label=f"pooled mean {d.test_r.mean():+.3f}")
     a.set_ylabel("in-house hold-out r")
-    a.set_title("C. Hold-out r by head")
+    _letter(a, "C")
     a.legend(fontsize=7.5)
     a.tick_params(axis="x", labelsize=7.5)
 

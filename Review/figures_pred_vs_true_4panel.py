@@ -41,6 +41,8 @@ def _frame(ax, t, p, letter):
 
 
 def _tag(ax, tag, tagcolor):
+    if not tag:
+        return
     ax.text(.97, .97, tag, transform=ax.transAxes, ha="right", va="top",
             fontsize=7.8, fontweight="bold", color=tagcolor,
             bbox=dict(fc="white", ec=tagcolor, alpha=.85,

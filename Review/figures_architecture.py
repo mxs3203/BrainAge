@@ -34,7 +34,7 @@ def main():
     # ================= A: per-channel encoder =======================
     ax = fig.add_subplot(gs[0]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
     ax.text(0.005, 0.96, "A", fontsize=16, fontweight="bold", va="top")
-    ax.text(0.038, 0.955, "Per-channel encoder (one per electrode, 14 in total)",
+    ax.text(0.038, 0.955, "",
             fontsize=11.5, va="top")
 
     box(ax, 0.03, 0.40, 0.11, 0.20,
@@ -69,7 +69,7 @@ def main():
     # ================= B: full model ================================
     ax = fig.add_subplot(gs[1]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
     ax.text(0.005, 0.97, "B", fontsize=16, fontweight="bold", va="top")
-    ax.text(0.038, 0.965, "Full model: covariance pooling in the log-Euclidean tangent space",
+    ax.text(0.038, 0.965, "",
             fontsize=11.5, va="top")
 
     for i, yy in enumerate([0.76, 0.62, 0.48, 0.22]):

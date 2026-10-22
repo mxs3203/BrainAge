@@ -29,6 +29,7 @@ from harmonized_io import build_windows, load_dataset  # noqa: E402
 from stimulus_groups import group as sgroup  # noqa: E402
 from pasa_age_groups import CH, log_ratio, perm_p, paper_bands  # noqa: E402
 from pasa_index import _pearson  # noqa: E402
+from pasa_age_groups import _letter  # noqa: E402
 
 FS = 256.0
 ANT = ["AF3", "AF4", "F7", "F3", "F4", "F8", "FC5", "FC6"]
@@ -132,7 +133,7 @@ def main():
                 label=lab)
     ax.axvspan(49, 51, color="k", alpha=.08)
     ax.set_xlabel("frequency (Hz)"); ax.set_ylabel("log10 power (mean)")
-    ax.set_title("A. Mean spectrum by recipe", fontsize=10, loc="left")
+    _letter(ax, "A")
     ax.legend(fontsize=7, frameon=False)
 
     # ---- B  adjacent-frequency topography correlation ---------------
@@ -146,8 +147,7 @@ def main():
                          homogeneity_min=round(float(adj.min()), 3)))
     ax.set_xlabel("frequency (Hz)")
     ax.set_ylabel("topography r, f vs f+0.5 Hz")
-    ax.set_title("B. Spectral homogeneity across frequencies", fontsize=10,
-                 loc="left")
+    _letter(ax, "B")
     ax.set_ylim(0, 1.02)
     ax.legend(fontsize=7, frameon=False, loc="lower left")
 
@@ -158,7 +158,7 @@ def main():
                    extent=[freqs[0], freqs[-1], freqs[0], freqs[-1]])
     fig.colorbar(im, ax=ax, fraction=.046)
     ax.set_xlabel("frequency (Hz)"); ax.set_ylabel("frequency (Hz)")
-    ax.set_title("D. Homogeneity between every pair of frequencies,\n    published pipeline", fontsize=10, loc="left")
+    _letter(ax, "D")
 
     # ---- D  split-half reliability ----------------------------------
     ax = fig.add_subplot(gs[1, 0])
@@ -171,8 +171,7 @@ def main():
                 r["split_half_mean"] = round(float(sh.mean()), 3)
     ax.axhline(0, color="k", lw=.8)
     ax.set_xlabel("frequency (Hz)"); ax.set_ylabel("split-half topography r")
-    ax.set_title("C. Topography reliability across participants", fontsize=10,
-                 loc="left")
+    _letter(ax, "C")
     ax.set_ylim(-.1, 1.02)
     ax.legend(fontsize=7, frameon=False, loc="lower left")
 
